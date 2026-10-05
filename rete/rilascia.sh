@@ -24,8 +24,11 @@ fail(){
 }
 
 remote_version(){        # versione pubblicata su un ramo (0 se non c'e')
+   # dall'API di GitHub e non da raw.githubusercontent.com: un 404 chiesto a raw (ramo non ancora creato)
+   # resta in cache per minuti e le basi vedrebbero "404" anche dopo la pubblicazione (06/10)
    local v
-   v=$(curl -fsS -m 20 "${RAW}/${1}/Description.json?$(date +%s)" 2>/dev/null | grep -o '"version": *"[0-9]*"' | grep -o '[0-9][0-9]*')
+   v=$(gh api "repos/${REPO}/contents/Description.json?ref=${1}" --jq .content 2>/dev/null | base64 -d 2>/dev/null \
+       | grep -o '"version": *"[0-9]*"' | grep -o '[0-9][0-9]*')
    echo "${v:-0}"
 }
 
@@ -48,6 +51,8 @@ promuovi)
    [[ "${v}" != 0 ]] || fail "nessuna versione sul ramo prova"
    echo "Porto su stabile (main) la versione $(label "${v}") gia' pubblicata su prova"
    git push "${REMOTE}" "${REMOTE}/prova:refs/heads/main" || fail "push su main (main ha commit che prova non ha?)"
+   gh release edit "v$(label "${v}")" -R "${REPO}" --prerelease=false --latest \
+      || echo "ATTENZIONE: rilascio v$(label "${v}") non trovato su GitHub: segnarlo a mano come definitivo"
    echo "Fatto: le basi sul canale stabile vedranno la $(label "${v}") entro 12 ore (o con Controlla adesso)."
    exit 0
    ;;
@@ -101,5 +106,13 @@ git add -A . || fail "git add"
 git update-index --chmod=+x rete/*.sh rete/test/esegui_test.sh install.sh || fail "git update-index"
 git commit -q -m "EVONETRTKBASE $(label "${version}")" -m "$(printf '%s\n' "$@")" ${COMMIT_TRAILER:+-m "${COMMIT_TRAILER}"} || fail "git commit"
 git push "${REMOTE}" "HEAD:refs/heads/prova" || fail "git push"
+
+echo "== 7. tag e rilascio su GitHub (pre-release finche' non e' promossa)"
+tag="v$(label "${version}")"
+git tag "${tag}" HEAD || fail "git tag ${tag}"
+git push "${REMOTE}" "refs/tags/${tag}" || fail "push del tag ${tag}"
+notes=$(printf -- '- %s\n' "$@"; printf '\nCanale: prova (pre-release). Impronta SHA-256 di install.sh: `%s`\n' "${sha}")
+gh release create "${tag}" install.sh -R "${REPO}" --verify-tag --prerelease \
+   --title "EVONETRTKBASE $(label "${version}")" --notes "${notes}" || fail "gh release create ${tag}"
 echo "Pubblicata EVONETRTKBASE $(label "${version}") sul canale prova (sha256 ${sha})."
 echo "Dopo qualche giorno senza problemi sulla base di prova: rete/rilascia.sh promuovi"

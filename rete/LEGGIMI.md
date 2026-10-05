@@ -51,6 +51,10 @@ rete/rilascia.sh promuovi      # dopo qualche giorno senza problemi: la stessa v
 rete/rilascia.sh stato         # versioni pubblicate
 ```
 
+Ogni rilascio crea anche il tag `v1.9.8-NN` e una Release su GitHub con `install.sh` allegato: pre-release
+finché è sul canale prova, definitiva (e "latest", quella del link di installazione nel README) dopo
+`promuovi`. Il ramo di lavoro sul PC è `evonet`.
+
 Serve il remote git `evonet` (`git remote add evonet https://github.com/EVONETRTK/EVONETRTKBASE.git`).
 
 ## Aggiornare una base

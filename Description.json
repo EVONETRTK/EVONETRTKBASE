@@ -1,6 +1,6 @@
 {
-  "version": "19801",
-  "new_release": "EVONETRTKBASE 1.9.8-01",
-  "comment": "Prima versione EVONETRTKBASE: pagina Rete (Ethernet, WiFi, LTE, hotspot di emergenza, modem Air780E)\r\nScheda di accesso stampabile\r\nAggiornamenti online da EVONETRTK/EVONETRTKBASE con canali stabile/prova e verifica SHA-256",
-  "sha256": "a01115b77650e6081ce7223b2cd9273bfb75d6a17a978736c3a2762d45693e42"
+  "version": "19802",
+  "new_release": "EVONETRTKBASE 1.9.8-02",
+  "comment": "README di EVONETRTKBASE in italiano (installazione, aggiornamenti, canali)\r\nRilasci su GitHub con install.sh allegato per ogni versione\r\nScript di rilascio: versioni lette dall'API di GitHub (niente 404 in cache)",
+  "sha256": "ee9920b20a669eedd9f5c3928165b24293c2b1e129693f24f127282eb0bc0403"
 }

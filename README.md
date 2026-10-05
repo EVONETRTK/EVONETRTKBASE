@@ -1,64 +1,61 @@
-# ELT_RTKBase
+# EVONETRTKBASE
 
-### Raspberry Pi OS compatible RtkBase software for Unicore UM98x, Bynav M2x, Septentrio Mosaic X5 and u-blox ZED-X20P
+Software per **basi GNSS RTK su Raspberry Pi** della rete EVONETRTK. È
+[ELT_RTKBase](https://github.com/GNSSOEM/ELT_RTKBase) (a sua volta basato su
+[RTKBase](https://github.com/Stefal/rtkbase)) con in più la pagina **Rete**, pensata per basi installate in
+posti senza un tecnico vicino e collegate con la rete mobile.
 
-Based on [RtkBase](https://github.com/Stefal/rtkbase) by Stefal
+Il README originale di ELT_RTKBase è in [README_ELT.md](README_ELT.md).
 
+## Cosa aggiunge a ELT_RTKBase
 
-## Easy installation:
-+ Connect your Unicore, Bynav, Septentrio or u-blox receiver to your raspberry pi/orange pi/....
+- **Pagina Rete** nel pannello: priorità tra Ethernet, WiFi e LTE, scelta della rete WiFi, LTE acceso solo
+  quando serve, APN e PIN della SIM, traffico mensile LTE con soglia, registro eventi.
+- **Modem LTE Air780E** (scheda a pogo pin per Raspberry Pi Zero, RNDIS): riconoscimento automatico, recupero
+  della connessione, segnale, gestore, tensione e temperatura.
+- **Hotspot di emergenza**: se la base resta senza internet, accende una sua rete WiFi e chi si collega viene
+  portato alla pagina Rete.
+- **Controlli automatici**: temperature (Pi, ricevitore, modem), ricevitore che smette di trasmettere (con il
+  numero di satelliti visti), chip WiFi bloccato (riavvio), servizi della base fermi (ripartenza),
+  ricollegamento veloce al caster dopo i tagli della rete mobile.
+- **Scheda di accesso stampabile**: indirizzi, QR, utenti e password, istruzioni passo per passo e cosa fare se
+  la base non risponde.
+- **Aggiornamenti online da questo repository**, con canale stabile/prova, verifica dell'impronta SHA-256 di
+  `install.sh` e copia di sicurezza prima di installare. La base avvisa, non installa mai da sola.
 
-+ Open a terminal and:
+## Installazione su una base nuova
 
-  ```bash
-  wget https://github.com/GNSSOEM/ELT_RTKBase/raw/main/install.sh
-  chmod +x install.sh
-  ./install.sh
-  ```
-+ RTFM
+1. Scrivere sulla scheda SD **Raspberry Pi OS Lite (64 bit)** con Raspberry Pi Imager (nome host, utente, WiFi
+   e SSH si impostano nell'Imager).
+2. Collegare il ricevitore GNSS (Unicore UM98x o un altro supportato da ELT_RTKBase) e, se c'è, il modem LTE.
+3. Entrare in SSH e lanciare:
 
-## Two phase installation:
-+ ./install.sh -1 for part of installation without receiver
-+ Connect the GNSS receiver to the Raspberry Pi
-+ ./install.sh -2 for part of installation with receiver
+   ```bash
+   wget https://github.com/EVONETRTK/EVONETRTKBASE/releases/latest/download/install.sh
+   chmod +x install.sh
+   ./install.sh
+   ```
 
-## Main features, added to RTKBase
+   Per una versione del canale prova, scaricare `install.sh` dalla [pagina dei rilasci](../../releases).
+4. Aprire `http://<nome-base>.local`, completare la configurazione di ELT_RTKBase e poi la pagina **Rete**.
 
-+ Use Unicore, Bynav, Septentrio or Ublox receiver
-+ Full configure for receiver and Raspberry Pi
-+ If mount and password are both TCP, use TCP-client instead of NTRIP-server
-+ Setup base position to receiver
-+ Timeout for PPP-solution is extended to 36 hours
-+ Default settings is adopted to Unicore, Bynav, Septentrio or u-blox receiver, onocoy.com and rtkdirect.com
-+ Windows RTK & HAS utilities for precise resolving RTK base position
-+ Zeroconf configuration as rtkbase.local in the local network
-+ When speed changed in main settings, speed of receiver will be changing too
-+ Configuring WiFi via an Windows application  (not only on first boot)
-+ Adding users via an Windows application  (not only on first boot)
-+ Complete [documentation](./Doc/ELT_RTKBase_v1.9.8_EN.pdf) with lots of pictures
-+ Zeroconfig VPN by [Tailscale](https://tailscale.com)
-+ System update & upgrade by button in the web-interface
-+ Indication of disconnections with the NTRIP server in the web interface.
-+ Support for static IP addresses
-+ WPS PBC for WiFi
-+ Internet access via 4G/5G USB modems such as Huawei HiLink.
-+ Data Transmission via Radio Modem.
-+ NTRIP 2.0
-+ 5 NTRIP servers
+## Aggiornare una base
 
-## The next version is expected to include:
-+ Host mode
+- Pagina Rete → **Aggiornamenti del software**: versione installata, canale, novità.
+- Per installare: Settings → **Check update** → Update.
+- Senza internet: `http://<base>/settings?update=manual` e caricare un `install.sh` preso dai
+  [rilasci](../../releases).
 
-## ready-made base stations:
-You can buy ready-made base stations at [gnss.store](https://gnss.store/collections/cors-fanless-stations). To choose stations, read [our blog](https://gnss.store/blogs/elt-rtk-base/tagged/2-choosing-a-gnss-base-station).
+| Canale | Ramo | Per |
+|---|---|---|
+| stabile | `main` | basi in campo |
+| prova | `prova` | base di test: ogni versione passa da qui prima di andare su stabile |
 
-## License:
-ELT_RTKBase is licensed under AGPL 3 (see [LICENSE](./LICENSE) file).
+## Per chi sviluppa
 
-ELT_RTKBase uses [RtkBase](https://github.com/Stefal/rtkbase) (AGPL v3) by Stefal
+Struttura dei file, numerazione delle versioni, test e pubblicazione dei rilasci: [rete/LEGGIMI.md](rete/LEGGIMI.md).
 
-ELT_RTKBase uses [PBC](https://github.com/kcdtv/PBC) (GPL v3) by kcdtv
+## Licenza
 
-ELT_RTKBase uses [ntripserver](https://github.com/simeononsecurity/ntripserver) (GPL v2) by German Federal Agency for Cartography and Geodesy (BKG)
-
-ELT_RTKBase uses [GPSD](https://gitlab.com/gpsd/gpsd) ([BSD](https://gitlab.com/gpsd/gpsd/-/blob/master/COPYING)) by [authors](https://gitlab.com/gpsd/gpsd/-/blob/master/AUTHORS)
+AGPL-3.0, come ELT_RTKBase e RTKBase (vedi [LICENSE](LICENSE)). Codice originale di
+[GNSSOEM/ELT_RTKBase](https://github.com/GNSSOEM/ELT_RTKBase) e [Stefal/rtkbase](https://github.com/Stefal/rtkbase).
