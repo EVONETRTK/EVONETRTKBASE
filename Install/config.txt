@@ -1,0 +1,95 @@
+# For more options and information see
+# http://rptl.io/configtxt
+# Some settings may impact device functionality. See link above for details
+
+# Uncomment some or all of these to enable the optional hardware interfaces
+dtparam=i2c_arm=off
+dtparam=i2s=off
+dtparam=spi=off
+
+# Enable audio (loads snd_bcm2835)
+dtparam=audio=off
+
+# Additional overlays and parameters are documented
+# /boot/firmware/overlays/README
+
+# Automatically load overlays for detected cameras
+camera_auto_detect=0
+
+# Automatically load overlays for detected DSI displays
+display_auto_detect=0
+
+# Automatically load initramfs files, if found
+auto_initramfs=1
+
+# Enable DRM VC4 V3D driver
+# disable HDMI (saves power)
+#dtoverlay=vc4-kms-v3d
+#dtoverlay=vc4-kms-v3d,nohdmi
+max_framebuffers=0
+gpu_mem=16
+disable_touchscreen=1
+disable_splash=1
+ignore_lcd=1
+
+
+# Don't have the firmware create an initial video= setting in cmdline.txt.
+# Use the kernel's default instead.
+disable_fw_kms_setup=1
+
+# Run in 64-bit mode
+arm_64bit=1
+
+# Disable compensation for displays with overscan
+disable_overscan=1
+
+# disable composite video output
+enable_tvout=0
+
+# Run as fast as firmware / board allows
+arm_boost=0
+
+# processor
+core_freq=250
+dvfs=1
+force_turbo=0
+initial_turbo=10
+
+#temperature
+temp_soft_limit=60
+temp_limit=80
+
+#led
+dtparam=act_led_trigger=none
+dtparam=act_led_activelow=on
+disable_camera_led=1
+
+[cm4]
+dtoverlay=uart1
+dtparam=i2c_vc=on
+[all]
+[pi02]
+enable_uart=0
+dtoverlay=disable-bt
+# all these options cause a wait for an I2C bus response, we don't need any of them, so let's disable them.
+force_eeprom_read=0
+disable_poe_fan=1
+[all]
+[pi4]
+enable_uart=1
+dtoverlay=miniuart-bt
+dtoverlay=pps-gpio,gpiopin=18
+# Enable host mode on the 2711 built-in XHCI USB controller.
+# This line should be removed if the legacy DWC2 controller is required
+# (e.g. for USB device mode) or if USB support is not required.
+otg_mode=1
+[none]
+#dtoverlay=uart3
+[all]
+
+
+
+
+
+
+

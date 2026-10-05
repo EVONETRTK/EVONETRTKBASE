@@ -1,0 +1,15 @@
+Other/*
+Test/*
+Tools/Dont_publish/*
+*.tmp
+*.log
+Windows/Ini.cmd
+*.~*
+*.obj
+*.tds
+*.res
+*.dsk
+*.dat
+*.xz
+*.25*
+*.26*

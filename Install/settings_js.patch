@@ -1,0 +1,713 @@
+diff --git a/web_app/static/settings.js b/web_app/static/settings.js
+index 5b64baa..8a9ab1c 100644
+--- a/web_app/static/settings.js
++++ b/web_app/static/settings.js
+@@ -79,7 +79,7 @@ $(document).ready(function () {
+     // View/hide password buttons for: Ntrip A, Ntrip B and Local caster
+     document.querySelectorAll(".input-group-append").forEach(function(e) {
+         var name = e.querySelector("button").id.replace("_button", "");
+-        if (!["svr_pwd_A", "svr_pwd_B", "local_ntripc_pwd", "rtcm_client_pwd"].includes(name))
++        if (!["svr_pwd_A", "svr_pwd_B", "svr_pwd_C", "svr_pwd_D", "svr_pwd_E", "local_ntripc_pwd", "rtcm_client_pwd"].includes(name))
+             return;
+ 
+         var button = $("#" + name + "_button");
+@@ -111,7 +111,7 @@ $(document).ready(function () {
+     socket.on("services status", function(msg) {
+         // gestion des services
+         var servicesStatus = JSON.parse(msg);
+-        //console.log("service status: " + servicesStatus);
++        //console.log("service status: " + msg);
+         
+         // ################ MAiN service Switch  ######################
+         //console.log("REFRESHING  service switch");
+@@ -131,7 +131,12 @@ $(document).ready(function () {
+         if (servicesStatus[0].btn_off_color) {
+             mainSwitch.bootstrapToggle('setOffStyle', servicesStatus[0].btn_off_color);
+         }
+-        
++        var main_Error = $('#main-error');
++        if (servicesStatus[0].error) {
++            main_Error.text(servicesStatus[0].error);
++        } else {
++            main_Error.text('');
++        }
+         // event for switching on/off service on user mouse click
+         //TODO When the switch changes its position, this event seems attached before
+         //the switch finish its transition, then fire another event.
+@@ -159,6 +164,12 @@ $(document).ready(function () {
+         if (servicesStatus[1].btn_off_color) {
+             ntrip_A_Switch.bootstrapToggle('setOffStyle', servicesStatus[1].btn_off_color);
+         }
++        var ntrip_A_Error = $('#ntrip_A-error');
++        if (servicesStatus[1].error) {
++            ntrip_A_Error.text(servicesStatus[1].error);
++        } else {
++            ntrip_A_Error.text('');
++        }
+         
+         // event for switching on/off service on user mouse click
+         //TODO When the switch changes its position, this event seems attached before
+@@ -187,6 +198,12 @@ $(document).ready(function () {
+         if (servicesStatus[2].btn_off_color) {
+             ntrip_B_Switch.bootstrapToggle('setOffStyle', servicesStatus[2].btn_off_color);
+         }
++        var ntrip_B_Error = $('#ntrip_B-error');
++        if (servicesStatus[2].error) {
++            ntrip_B_Error.text(servicesStatus[2].error);
++        } else {
++            ntrip_B_Error.text('');
++        }
+         
+         // event for switching on/off service on user mouse click
+         //TODO When the switch changes its position, this event seems attached before
+@@ -198,11 +215,113 @@ $(document).ready(function () {
+             socket.emit("services switch", {"name" : "ntrip_B", "active" : switchStatus});           
+         })
+ 
++        // ####################  NTRIP C service Switch #########################
++        var ntrip_C_Switch = $('#ntrip_C-switch');
++        // set the switch to on/off depending of the service status
++        if (servicesStatus[3].active === true) {
++            //document.querySelector("#main-switch").bootstrapToggle('on');
++            ntrip_C_Switch.bootstrapToggle('on', true);
++        } else {
++            //document.querySelector("#main-switch").bootstrapToggle('off');
++            ntrip_C_Switch.bootstrapToggle('off', true);
++        }
++        //console.log(servicesStatus[3]);
++        if (servicesStatus[3].btn_color) {
++            ntrip_C_Switch.bootstrapToggle('setOnStyle', servicesStatus[3].btn_color);
++        }
++        if (servicesStatus[3].btn_off_color) {
++            ntrip_C_Switch.bootstrapToggle('setOffStyle', servicesStatus[3].btn_off_color);
++        }
++        var ntrip_C_Error = $('#ntrip_C-error');
++        if (servicesStatus[3].error) {
++            ntrip_C_Error.text(servicesStatus[3].error);
++        } else {
++            ntrip_C_Error.text('');
++        }
++        
++        // event for switching on/off service on user mouse click
++        //TODO When the switch changes its position, this event seems attached before
++        //the switch finish its transition, then fire another event.
++        $( "#ntrip_C-switch" ).one("change", function(e) {
++            var switchStatus = $(this).prop('checked');
++            //console.log(" e : " + e);
++            //console.log("Ntrip SwitchStatus : " + switchStatus);
++            socket.emit("services switch", {"name" : "ntrip_C", "active" : switchStatus});           
++        })
++
++        // ####################  NTRIP D service Switch #########################
++        var ntrip_D_Switch = $('#ntrip_D-switch');
++        // set the switch to on/off depending of the service status
++        if (servicesStatus[4].active === true) {
++            //document.querySelector("#main-switch").bootstrapToggle('on');
++            ntrip_D_Switch.bootstrapToggle('on', true);
++        } else {
++            //document.querySelector("#main-switch").bootstrapToggle('off');
++            ntrip_D_Switch.bootstrapToggle('off', true);
++        }
++        //console.log(servicesStatus[4]);
++        if (servicesStatus[4].btn_color) {
++            ntrip_D_Switch.bootstrapToggle('setOnStyle', servicesStatus[4].btn_color);
++        }
++        if (servicesStatus[4].btn_off_color) {
++            ntrip_D_Switch.bootstrapToggle('setOffStyle', servicesStatus[4].btn_off_color);
++        }
++        var ntrip_D_Error = $('#ntrip_D-error');
++        if (servicesStatus[4].error) {
++            ntrip_D_Error.text(servicesStatus[4].error);
++        } else {
++            ntrip_D_Error.text('');
++        }
++        
++        // event for switching on/off service on user mouse click
++        //TODO When the switch changes its position, this event seems attached before
++        //the switch finish its transition, then fire another event.
++        $( "#ntrip_D-switch" ).one("change", function(e) {
++            var switchStatus = $(this).prop('checked');
++            //console.log(" e : " + e);
++            //console.log("Ntrip SwitchStatus : " + switchStatus);
++            socket.emit("services switch", {"name" : "ntrip_D", "active" : switchStatus});           
++        })
++
++        // ####################  NTRIP E service Switch #########################
++        var ntrip_E_Switch = $('#ntrip_E-switch');
++        // set the switch to on/off depending of the service status
++        if (servicesStatus[5].active === true) {
++            //document.querySelector("#main-switch").bootstrapToggle('on');
++            ntrip_E_Switch.bootstrapToggle('on', true);
++        } else {
++            //document.querySelector("#main-switch").bootstrapToggle('off');
++            ntrip_E_Switch.bootstrapToggle('off', true);
++        }
++        //console.log(servicesStatus[5]);
++        if (servicesStatus[5].btn_color) {
++            ntrip_E_Switch.bootstrapToggle('setOnStyle', servicesStatus[5].btn_color);
++        }
++        if (servicesStatus[5].btn_off_color) {
++            ntrip_E_Switch.bootstrapToggle('setOffStyle', servicesStatus[5].btn_off_color);
++        }
++        var ntrip_E_Error = $('#ntrip_E-error');
++        if (servicesStatus[5].error) {
++            ntrip_E_Error.text(servicesStatus[5].error);
++        } else {
++            ntrip_E_Error.text('');
++        }
++        
++        // event for switching on/off service on user mouse click
++        //TODO When the switch changes its position, this event seems attached before
++        //the switch finish its transition, then fire another event.
++        $( "#ntrip_E-switch" ).one("change", function(e) {
++            var switchStatus = $(this).prop('checked');
++            //console.log(" e : " + e);
++            //console.log("Ntrip SwitchStatus : " + switchStatus);
++            socket.emit("services switch", {"name" : "ntrip_E", "active" : switchStatus});           
++        })
++
+         // ################  Local NTRIP Caster service Switch #####################
+ 
+         var ntripcSwitch = $('#ntripc-switch');
+         // set the switch to on/off depending of the service status
+-        if (servicesStatus[3].active === true) {
++        if (servicesStatus[6].active === true) {
+             //document.querySelector("#main-switch").bootstrapToggle('on');
+             ntripcSwitch.bootstrapToggle('on', true);
+         } else {
+@@ -210,12 +329,12 @@ $(document).ready(function () {
+             ntripcSwitch.bootstrapToggle('off', true);
+         }
+         
+-        //console.log(servicesStatus[2]);
+-        if (servicesStatus[3].btn_color) {
+-            ntripcSwitch.bootstrapToggle('setOnStyle', servicesStatus[3].btn_color);
++        //console.log(servicesStatus[6]);
++        if (servicesStatus[6].btn_color) {
++            ntripcSwitch.bootstrapToggle('setOnStyle', servicesStatus[6].btn_color);
+         }
+-        if (servicesStatus[3].btn_off_color) {
+-            ntripcSwitch.bootstrapToggle('setOffStyle', servicesStatus[3].btn_off_color);
++        if (servicesStatus[6].btn_off_color) {
++            ntripcSwitch.bootstrapToggle('setOffStyle', servicesStatus[6].btn_off_color);
+         }
+         
+         // event for switching on/off service on user mouse click
+@@ -232,19 +351,19 @@ $(document).ready(function () {
+ 
+         var rtcmSvrSwitch = $('#rtcm_svr-switch');
+         // set the switch to on/off depending of the service status
+-        if (servicesStatus[4].active === true) {
++        if (servicesStatus[7].active === true) {
+             //document.querySelector("#main-switch").bootstrapToggle('on');
+             rtcmSvrSwitch.bootstrapToggle('on', true);
+         } else {
+             //document.querySelector("#main-switch").bootstrapToggle('off');
+             rtcmSvrSwitch.bootstrapToggle('off', true);
+         }
+-        //console.log(servicesStatus[3]);
+-        if (servicesStatus[4].btn_color) {
+-            rtcmSvrSwitch.bootstrapToggle('setOnStyle', servicesStatus[4].btn_color);
++        //console.log(servicesStatus[7]);
++        if (servicesStatus[7].btn_color) {
++            rtcmSvrSwitch.bootstrapToggle('setOnStyle', servicesStatus[7].btn_color);
+         }
+-        if (servicesStatus[4].btn_off_color) {
+-            rtcmSvrSwitch.bootstrapToggle('setOffStyle', servicesStatus[4].btn_off_color);
++        if (servicesStatus[7].btn_off_color) {
++            rtcmSvrSwitch.bootstrapToggle('setOffStyle', servicesStatus[7].btn_off_color);
+         }
+         
+         // event for switching on/off service on user mouse click
+@@ -261,19 +380,19 @@ $(document).ready(function () {
+         
+         var rtcmSerialSwitch = $('#rtcm_serial-switch');
+         // set the switch to on/off depending of the service status
+-        if (servicesStatus[5].active === true) {
++        if (servicesStatus[8].active === true) {
+             //document.querySelector("#main-switch").bootstrapToggle('on');
+             rtcmSerialSwitch.bootstrapToggle('on', true);
+         } else {
+             //document.querySelector("#main-switch").bootstrapToggle('off');
+             rtcmSerialSwitch.bootstrapToggle('off', true);
+         }
+-        //console.log(servicesStatus[4]);
+-        if (servicesStatus[5].btn_color) {
+-            rtcmSerialSwitch.bootstrapToggle('setOnStyle', servicesStatus[5].btn_color);
++        //console.log(servicesStatus[8]);
++        if (servicesStatus[8].btn_color) {
++            rtcmSerialSwitch.bootstrapToggle('setOnStyle', servicesStatus[8].btn_color);
+         }
+-        if (servicesStatus[5].btn_off_color) {
+-            rtcmSerialSwitch.bootstrapToggle('setOffStyle', servicesStatus[5].btn_off_color);
++        if (servicesStatus[8].btn_off_color) {
++            rtcmSerialSwitch.bootstrapToggle('setOffStyle', servicesStatus[8].btn_off_color);
+         }
+         
+         // event for switching on/off service on user mouse click
+@@ -290,19 +409,19 @@ $(document).ready(function () {
+ 
+         var fileSwitch = $('#file-switch');
+         // set the switch to on/off depending of the service status
+-        if (servicesStatus[6].active === true) {
++        if (servicesStatus[9].active === true) {
+             //document.querySelector("#main-switch").bootstrapToggle('on');
+             fileSwitch.bootstrapToggle('on', true);
+         } else {
+             //document.querySelector("#main-switch").bootstrapToggle('off');
+             fileSwitch.bootstrapToggle('off', true);
+         }
+-        //console.log(servicesStatus[5]);
+-        if (servicesStatus[6].btn_color) {
+-            fileSwitch.bootstrapToggle('setOnStyle', servicesStatus[6].btn_color);
++        //console.log(servicesStatus[9]);
++        if (servicesStatus[9].btn_color) {
++            fileSwitch.bootstrapToggle('setOnStyle', servicesStatus[9].btn_color);
+         }
+-        if (servicesStatus[6].btn_off_color) {
+-            fileSwitch.bootstrapToggle('setOffStyle', servicesStatus[6].btn_off_color);
++        if (servicesStatus[9].btn_off_color) {
++            fileSwitch.bootstrapToggle('setOffStyle', servicesStatus[9].btn_off_color);
+         }
+         
+         // event for switching on/off service on user mouse click
+@@ -343,8 +462,8 @@ $(document).ready(function () {
+     socket.on("gnss_detection_result", function(msg) {
+         // open modal box with detection result and asking for configuration if detection is a success
+         response = JSON.parse(msg);
+-        console.log(response);
+-        detectApplyBtnElt.setAttribute('data-dismiss', 'modal');
++        //console.log(response);
++        //detectApplyBtnElt.setAttribute('data-dismiss', 'modal');
+         if (response['result'] === 'success') {
+             detectBodyElt.innerHTML = '<b>' + response['gnss_type'] + ' ' + response['model'] + '</b>' + ' detected on ' + '<b>' + response['port'] + '</b>' + '<br>' + '<br>' + 'Do you want to apply?';
+             detectApplyBtnElt.onclick = function (){
+@@ -361,7 +480,7 @@ $(document).ready(function () {
+         response = JSON.parse(msg);
+         if (response['then_configure']) {
+             // asking for gnss receiver configuration
+-        document.querySelector('#configure_receiver_button').click();
++            document.querySelector('#configure_receiver_button').click();
+         } else {
+             // refreshing the page to display the new informations
+             location.href = document.URL.replace(/#$/, '');
+@@ -381,18 +500,18 @@ $(document).ready(function () {
+     })
+     socket.on("gnss_configuration_result", function(msg) {
+         response = JSON.parse(msg);
+-        console.log(response);
++        //console.log(response);
+         detectApplyBtnElt.removeAttribute('disabled');
+-        detectApplyBtnElt.setAttribute('data-dismiss', 'modal');
++        //detectApplyBtnElt.setAttribute('data-dismiss', 'modal');
++        detectApplyBtnElt.removeAttribute('data-dismiss');
+         detectApplyBtnElt.innerText = "Close";
++        detectApplyBtnElt.onclick = function() {
++            // window.location.reload();
++            // looks like this way works better :
++            location.href = document.URL.replace(/#$/, '');
++        }
+         if (response['result'] === 'success') {
+             detectBodyElt.innerHTML = "GNSS receiver successfully configured!";
+-            detectApplyBtnElt.removeAttribute('data-dismiss');
+-            detectApplyBtnElt.onclick = function() {
+-                // window.location.reload();
+-                // looks like this way works better :
+-                location.href = document.URL.replace(/#$/, '');
+-            }
+         } else {
+             detectBodyElt.innerHTML = "GNSS receiver configuration failed"
+         }
+@@ -412,28 +531,47 @@ $(document).ready(function () {
+     // ####################### HANDLE UPDATE #######################
+ 
+     $('#check_update_button').on("click", function (){
+-        socket.emit("check update");
++        $("#start-update-button").html('Update');
++        $("#start-update-button").prop("disabled", true);
++        $("#update-cancel-button").html('Cancel');
++        $("#update-cancel-button").on("click", null);
++        $("#update-cancel-button").prop("disabled", false);
++        $("#updateModal .modal-body").text('');
++        const urlParams = new URLSearchParams(window.location.search);
++        update = urlParams.get('update');
++        if (update === 'manual') update = null;
++        console.log("check update ELT. branch=" + update);
++        socket.emit("check update ELT", {"branch" : update});
+     });
+ 
+     socket.on("new release", function(msg) {
+         // open modal box asking for starting update
+         response = JSON.parse(msg);
+-        console.log(JSON.stringify(response));
++        console.log("new release:" + JSON.stringify(response));
+         if (response.error) {
+             $("#updateModal .modal-title").text("Update error!");
+-            $("#updateModal .modal-body").append(response['error']);
++            $("#updateModal .modal-body").text(response['error']);
+             $("#updateModal").modal();
+         }else if (response.new_release) {
+             $("#updateModal .modal-title").text("Update available!");
+-            $("#updateModal .modal-body").append('<p class="text-center">Do you want to install RTKBase <b>' + response['new_release'] +'</b>? <br>It will take a few minutes.</p>');                    
+-            $("#updateModal .modal-body").append('<p id="newFeatures"></p>');
++            $("#updateModal .modal-body").append('<p class="text-center">Do you want to install ELT RTKBase <b>' + response['new_release'] +'</b>? <br>It will take a few minutes.</p>');                    
+             var markdwnHtml = snarkdown(response['comment']);
+-            //lower <Hx> title tags values
+-                markdwnHtml= markdwnHtml.replace(/<h([1-4])(.*?)>(.*?)<\/h\1>/gi, (match, p1, p2, p3) => {
+-                    const newHtag = Math.min(parseInt(p1) + 3, 6);
+-                    return `<h${newHtag}${p2}>${p3}</h${newHtag}>`;
+-                });
+-            $("#newFeatures").append('<p>' + markdwnHtml + '</p>');     
++            if (!markdwnHtml.includes("<li>")) {
++               markdwnHtml = markdwnHtml.replace(/\r\n/g, '<br>');
++               var newFeaturesArray = response['comment'].split('\r\n');
++               $("#updateModal .modal-body").append('<p><ul id="newFeatures"><strong>New features</strong>:</ul></p><br>');
++               $.each( newFeaturesArray, function( index, value ){
++                   $("#newFeatures").append("<li>" + value.replace(/^\+ /g, "") + "</li>");
++               });
++            } else {
++               //lower <Hx> title tags values
++               markdwnHtml= markdwnHtml.replace(/<h([1-4])(.*?)>(.*?)<\/h\1>/gi, (match, p1, p2, p3) => {
++                   const newHtag = Math.min(parseInt(p1) + 3, 6);
++                   return `<h${newHtag}${p2}>${p3}</h${newHtag}>`;
++               });
++               $("#updateModal .modal-body").append('<p id="newFeatures"></p>');
++               $("#newFeatures").append('<p>' + markdwnHtml + '</p>');
++            }
+             $("#start-update-button").removeAttr("disabled");
+             $("#updateModal").modal();
+         } else {
+@@ -445,55 +583,68 @@ $(document).ready(function () {
+         const queryString = window.location.search;
+         const urlParams = new URLSearchParams(queryString);
+         if (urlParams.get('update') === 'manual' ) {
+-            $("#updateModal .modal-body").append('<h3>Manual Update: </h3><form method="POST" action="" enctype="multipart/form-data"> <p><input type="file" name="file"></p><p><input id="submit-button" type="submit" value="Submit"></p></form>');
++            $("#updateModal .modal-body").append('<h3>Manual Update: </h3><form method="POST" action="" enctype="multipart/form-data"> <p><input id="submit-name" type="file" name="file"></p><p><input id="submit-button" type="submit" value="Submit"></p></form>');
+             const upd_formElt = document.querySelector('#updateModal div.modal-body form');
++            submit_name = document.getElementById("submit-name");
++            $("#submit-button").prop("disabled", true);
++            submit_name.addEventListener('change', function(ev) {
++                console.log('submit_name changed to:<'+submit_name.value+'>');
++                $("#submit-button").prop("disabled", (submit_name.value == ""));
++            });
+             upd_formElt.addEventListener('submit', handleFileSubmit);
+             function handleFileSubmit(event) {
+-                console.log('inside function handlefilesubmit');
+                 event.preventDefault;
+                 fetch(upd_formElt.action, {
+                     method: "post",
+                     // body: new URLSearchParams(new FormData(form)) // for application/x-www-form-urlencoded
+                     body: new FormData(upd_formElt) // for multipart/form-data
+                 });
+-                $("#updateModal .modal-body").html('<span class="spinner-border spinner-border-sm"></span> Updating...');
++                $("#updateModal .modal-title").text("Manual Update from file!");
++                $("#updateModal .modal-body").text("Please wait...Downloading update from file...");
++                $("#start-update-button").prop("disabled", true);
++                $("#start-update-button").html('<span class="spinner-border spinner-border-sm"></span> Updating...');
++                $("#update-cancel-button").prop("disabled", true);
+             };
+         }
+     });
+     
+     $("#start-update-button").on("click", function () {
+         //$("#updateModal .modal-title").text(("Installing update"));
+-        socket.emit("update rtkbase");
++        const urlParams = new URLSearchParams(window.location.search);
++        update = urlParams.get('update');
++        if (update === 'manual') update = null;
++        console.log("update rtkbase ELT. branch=" + update);
++        socket.emit("update rtkbase ELT", {"branch" : "main"});
+         $("#updateModal .modal-body").text("Please wait...Downloading update...");
+         $(this).prop("disabled", true);
+         $(this).html('<span class="spinner-border spinner-border-sm"></span> Updating...');
+-        $("#cancel-button").prop("disabled", true);
++        $("#update-cancel-button").prop("disabled", true);
+         //now, we waiting for a download result message from the server
+     })
+ 
+     socket.on("downloading_update", function(msg) {
+         response = JSON.parse(msg);
+-        console.log("Downloading result: " + response);
++        console.log("Downloading result: " + JSON.stringify(response));
+         if (response['result'] === 'true') {
+             $("#updateModal .modal-body").text("Please wait...Preparing update...");
+         } else {
+-            $("#updateModal .modal-body").text("Download failure");
++            $("#updateModal .modal-body").text(response['error']);
+             $("#start-update-button").html('Update...');
+-            $("#cancel-button").prop("disabled", false);
++            $("#update-cancel-button").prop("disabled", false);
+         }
+     })
+ 
+     socket.on("updating_rtkbase_stopped", function(msg) {
+         response = JSON.parse(msg);
+-        console.log("mgs: " + response.error)
+-        $("#updateModal .modal-title").text("Error !");
++        console.log("updating_rtkbase_stopped: " + JSON.stringify(response))
++        $("#updateModal .modal-title").text(response.result);
+         $("#updateModal .modal-body").text("");
+         for (line of response.error) {
+-            $("#updateModal .modal-body").append("<p>" + line + "</p>");
++            $("#updateModal .modal-body").append(line + "<br>");
+         }
+-        $("#start-update-button").html('Update');
++        $("#start-update-button").html('Update...');
+         $("#start-update-button").prop("disabled", true);
+-        $("#cancel-button").prop("disabled", false);
++        $("#update-cancel-button").prop("disabled", false);
+     })
+ 
+     socket.on("updating_rtkbase", function() {
+@@ -501,16 +652,40 @@ $(document).ready(function () {
+         //update_countdown(1200, 0);
+     })
+     
+-    socket.on("update_successful", function() {
+-            console.log("update successful");
++    socket.on("update_successful", function(msg) {
++        response = JSON.parse(msg);
++        console.log("update finished: " + JSON.stringify(response));
++        console.log("result=" + response['result']);
++        $("#start-update-button").html('Refresh');
++        $("#start-update-button").off("click");
++        $("#start-update-button").on("click", function() {
++            location.reload();
++        });
++        if (response['result'] === 'true')
+             $("#updateModal .modal-body").text("Update Successful!");
+-            $("#start-update-button").html('Refresh');
+-            $("#start-update-button").prop("disabled", false);
++        else if (response['result'] === 'false')
++            $("#updateModal .modal-body").text("Update Error! See update.log in Logs page");
++        else if (response['result'] === 'reboot') {
++            $("#updateModal .modal-body").text("Update Successful, please REBOOT!");
+             $("#start-update-button").off("click");
+             $("#start-update-button").on("click", function() {
++               $('#updateModal').modal("hide");
++               $("#rebootModal").modal();
++               $("#confirm-reboot-button").click();
++            });
++            $("#start-update-button").html('Reboot');
++            $("#update-cancel-button").html('Refresh');
++            $("#update-cancel-button").on("click", function() {
+                 location.reload();
+             });
+-            $("#updateModal").modal();
++        } else {
++            $("#updateModal .modal-body").html('Update Error! See ' + 
++                                              '<a href="/logs/download/' + response['result'] + '" target="_blank">' +
++                                               response['result'] + '</a> in Logs page');
++        }
++        $("#start-update-button").prop("disabled", false);
++        $("#update-cancel-button").prop("disabled", false);
++        $("#updateModal").modal();
+     });
+ 
+     function update_countdown(remaining, count) {
+@@ -527,14 +702,6 @@ $(document).ready(function () {
+         }
+         setTimeout(function(){ update_countdown(remaining - 1, count + 1); }, 1000);
+     };
+-    // Cleaning update modal box when closing it
+-
+-    $("#updateModal").on('hidden.bs.modal', function(){
+-        $("#updateModal .modal-title").text("Update");
+-        $("#updateModal .modal-body").text('');
+-        $("#start-update-button").prop("disabled", true);
+-      });
+-
+     // ####################### HANDLE CHANGING PASSWORD #######################
+ 
+     document.getElementById('change_password').addEventListener("input", function(e) {
+@@ -598,7 +765,10 @@ $(document).ready(function () {
+         }
+ 
+         var networkElt = document.getElementById("network_infos");
+-        networkElt.innerHTML = createNetworkInterfacesList(sysInfos["network_infos"]);
++        if (sysInfos["network_infos"] != null)
++           networkElt.innerHTML = createNetworkInterfacesList(sysInfos["network_infos"]);
++        else
++           networkElt.innerHTML = '';
+     })
+ 
+     function createNetworkInterfacesList(interfaces) {
+@@ -726,6 +896,22 @@ $(document).ready(function () {
+           };
+       };
+ 
++    // ########################### HANDLE TAILSCALE ###########################
++
++    document.getElementById('tailscale-button').onclick = function (){
++        document.body.style.cursor = 'wait';
++        $('#tailscale-error').text('');
++        socket.emit("get tailscale href");
++    }
++    socket.on("tailscale_href", function(msg) {
++        window.open(msg, '_blank');
++        document.body.style.cursor = 'default';
++    })
++    socket.on("tailscale_error", function(msg) {
++        $('#tailscale-error').text(msg);
++        document.body.style.cursor = 'default';
++    })
++
+     // ####################### HANDLE REBOOT & SHUTDOWN #######################
+ 
+     $("#reboot-button").on("click", function() {
+@@ -737,16 +923,19 @@ $(document).ready(function () {
+         $(this).prop("disabled", true);
+         $("#reboot-cancel-button").prop("disabled", true);
+         socket.emit("reboot device");
+-        reboot_countdown(90, 0);
++        reboot_countdown(90, 0, 0);
+     })
+ 
+-    function reboot_countdown(remaining, count) {
++    function reboot_countdown(remaining, count, count2) {
+         if(remaining === 0)
+             location.reload();
+         if (count > 15 && socket.connected)
+-            location.reload();
+-        document.getElementById('countdown').innerHTML = remaining;
+-        setTimeout(function(){ reboot_countdown(remaining - 1, count + 1); }, 1000);
++           count2=count2+1;
++        if (count2 > 20)
++           location.reload();
++        if (remaining >= 0)
++           document.getElementById('countdown').innerHTML = remaining;
++        setTimeout(function(){ reboot_countdown(remaining - 1, count + 1, count2); }, 1000);
+     };
+     $("#shutdown-button").on("click", function() {
+         $("#shutdownModal").modal();
+@@ -758,5 +947,130 @@ $(document).ready(function () {
+         socket.emit("shutdown device");
+     })
+ 
++    $("#upgrade-button").on("click", function() {
++        $("#upgradeModal .modal-body").html('Update & upgrade linux. Are you sure?');
++        $("#confirm-upgrade-button").prop("hidden", false);
++        $("#confirm-upgrade-button").prop("disabled", false);
++        $("#confirm-upgrade-button").html('Upgrade');
++        $("#upgrade-cancel-button").prop("hidden", false);
++        $("#upgrade-cancel-button").prop("disabled", false);
++        $("#upgrade-cancel-button").html('Cancel');
++        $("#upgradeModal").modal();
++    })
++    $("#confirm-upgrade-button").on("click", function() {
++        $("#upgradeModal .modal-body").html('<div class="align-items-center">Upgrading now...  <div class="spinner-border ml-auto" role="status" aria-hidden="true"></div></div>');
++        $(this).html('<span class="spinner-border spinner-border-sm"></span> Upgrading...');
++        $(this).prop("disabled", true);
++        $("#upgrade-cancel-button").prop("hidden", true);
++        socket.emit("update and upgrade");
++    })
++    socket.on("upgrade_finished", function(msg) {
++        $("#upgradeModal .modal-body").html(msg);
++        $("#confirm-upgrade-button").prop("hidden", true);
++        $("#upgrade-cancel-button").prop("hidden", false);
++        $("#upgrade-cancel-button").html('Continue');
++    })
++    function set_ntrip_mode(letter) {
++        const selectElem = document.getElementById("svr_mode_" + letter);
++        const index = selectElem.selectedIndex;
++        // https://developer.mozilla.org/en-US/docs/Web/API/HTMLSelectElement/selectedIndex
++        //console.log(selectElem.name + "=" + index);
++        svr_addr = document.getElementById("svr_addr_" + letter);
++        svr_login = $("#svr_login_" + letter + "_group");
++        svr_input = $("#svr_login_" + letter);
++        svr_pwd = $("#svr_pwd_" + letter + "_group");
++        pwd_input = $("#svr_pwd_" + letter);
++        mnt_name = $("#mnt_name_" + letter + "_group");
++        mnt_input = $("#mnt_name_" + letter);
++        rtcm_msg = $("#rtcm_msg_" + letter + "_group");
++        receiver_options = $("#ntrip_" + letter + "_receiver_options_group");
++        switch(index) {
++           case 2: // NTRIP v2 TCP
++           case 3: // NTRIP v2 RSTP
++           case 4: // NTRIP v2 UDP
++                   svr_login.prop("hidden", false);
++                   svr_pwd.prop("hidden", false);
++                   pwd_input.prop("required", true);
++                   mnt_name.prop("hidden", false);
++                   if ((svr_addr.value === "servers.onocoy.com") && (index === 2)) {
++                      //console.log("Onocoy v2 mode");
++                      mnt_input.prop("required", false);
++                      svr_input.prop("required", true);
++                   } else {
++                      mnt_input.prop("required", true);
++                      svr_input.prop("required", false);
++                   }
++                   rtcm_msg.prop("hidden", true);
++                   receiver_options.prop("hidden", true);
++                   break;
++           case 1: // TCP
++                   svr_input.prop("required", false);
++                   svr_login.prop("hidden", true);
++                   pwd_input.prop("required", false);
++                   svr_pwd.prop("hidden", true);
++                   mnt_input.prop("required", false);
++                   mnt_name.prop("hidden", true);
++                   rtcm_msg.prop("hidden", false);
++                   receiver_options.prop("hidden", false);
++                   break;
++           default: // NTRIP v1
++                   //console.log(svr_addr.value);
++                   if (svr_addr.value === "servers.onocoy.com") {
++                      //console.log("Onocoy v1 mode");
++                      svr_login.prop("hidden", false);
++                      svr_input.prop("required", true);
++                      mnt_input.prop("required", false);
++                      mnt_name.prop("hidden", true);
++                   } else {
++                      svr_input.prop("required", false);
++                      svr_login.prop("hidden", true);
++                      mnt_name.prop("hidden", false);
++                      mnt_input.prop("required", true);
++                   }
++                   svr_pwd.prop("hidden", false);
++                   pwd_input.prop("required", true);
++                   rtcm_msg.prop("hidden", false);
++                   receiver_options.prop("hidden", false);
++        }
++    }
++
++    document.querySelectorAll("select.form-control").forEach(function(e) {
++        var letter = e.id.replace("svr_mode_", "");
++        //console.log(e.id + "(" + letter + ")");
++        e.addEventListener('click', function(ev) {
++            set_ntrip_mode(letter);
++        });
++        e.click()
++    });
++
++    document.querySelectorAll("input.form-control").forEach(function(e) {
++        if (/svr_addr_/.test(e.id)) {
++           var letter = e.id.replace("svr_addr_", "");
++           //console.log(e.id + "(" + letter + ")");
++           e.addEventListener('change', function(ev) {
++               set_ntrip_mode(letter);
++           });
++        }
++    });
++
++    function set_rtcm_mode() {
++       receiver_format = document.getElementById("receiver_format");
++       isRtcm = receiver_format.value === "rtcm3";
++       //console.log("set_rtcm_mode=" + isRtcm  + "(" + receiver_format.value + ")");
++       $("#rtcm_svr_msg_group").prop("hidden", isRtcm);
++       document.querySelectorAll("select.form-control").forEach(function(e) {
++          //console.log(e.id);
++          if (!isRtcm && (e.selectedIndex > 1))
++             e.selectedIndex= 0;
++          e.options[2].hidden = !isRtcm;
++          e.options[3].hidden = !isRtcm;
++          e.options[4].hidden = !isRtcm;
++       });
++    };
++
++    //main_service_save = $("#main_service_save");
++    $("#main_service_save").on('click', set_rtcm_mode);
++
++    set_rtcm_mode();
+     // end of document.ready
+ });

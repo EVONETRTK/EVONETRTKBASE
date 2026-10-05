@@ -1,0 +1,12 @@
+diff --git a/unit/str2str_tcp.service b/unit/str2str_tcp.service
+index d586de7..31ddd21 100644
+--- a/unit/str2str_tcp.service
++++ b/unit/str2str_tcp.service
+@@ -9,6 +9,7 @@ Type=simple
+ SyslogIdentifier=str2str_tcp
+ User={user}
+ ExecStart={script_path}/run_cast.sh in_serial out_tcp
++TimeoutStartSec=180
+ Restart=on-failure
+ RestartSec=30
+ #Limiting log to 1 msg per minute

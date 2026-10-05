@@ -1,0 +1,6 @@
+RESET
+Config ppp enable E6-HAS
+Config ppp datum wgs84
+MODE ROVER SURVEY DEFAULT
+UNLOG
+gpgga 1

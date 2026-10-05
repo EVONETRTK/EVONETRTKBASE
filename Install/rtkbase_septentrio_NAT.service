@@ -1,0 +1,13 @@
+[Unit]
+Description=RTKBase configure Septentrio NAT at start
+After=local-fs.target
+After=network.target
+
+[Service]
+ExecStart=/usr/local/rtkbase/rtkbase/rtkbase_septentrio_NAT.sh
+RemainAfterExit=true
+Type=oneshot
+SyslogIdentifier=rtkbase_septentrio_NAT
+
+[Install]
+WantedBy=multi-user.target

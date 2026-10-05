@@ -1,0 +1,14 @@
+[Unit]
+Description=RTKBase system configure at start
+After=local-fs.target
+After=network.target
+After=rtkbase_setup.service
+
+[Service]
+ExecStart=/usr/local/rtkbase/rtkbase_system_configure.sh
+RemainAfterExit=true
+Type=oneshot
+SyslogIdentifier=rtkbase_system_configure
+
+[Install]
+WantedBy=multi-user.target

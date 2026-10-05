@@ -1,0 +1,134 @@
+diff --git a/app/consapp/str2str/str2str.c b/app/consapp/str2str/str2str.c
+index d755086..9d5c187 100644
+--- a/app/consapp/str2str/str2str.c
++++ b/app/consapp/str2str/str2str.c
+@@ -40,9 +40,14 @@
+ #define TRACEFILE   "str2str_%Y%m%d%h%M.trace" /* Debug trace file */
+ #define LOGFILE     "str2str_%Y%m%d%h%M.log"   /* Deamon log file */
+ 
++extern void flagsetup(const char *path);
++extern void eventsetup(const char *path);
++extern void revisionsetup(const char *str);
++extern void ubxmodesetup(void);
+ /* global variables ----------------------------------------------------------*/
+ static strsvr_t strsvr;                /* stream server */
+-static volatile int intrflg=0;         /* interrupt flag */
++static sig_atomic_t intrflg=0;         /* interrupt flag */
++static sig_atomic_t exitcode=0;        /* exit code */
+ 
+ /* help text -----------------------------------------------------------------*/
+ static const char *help[]={
+@@ -114,6 +119,10 @@ static const char *help[]={
+ " -b  str_no        relay back messages from output str to input str [no]",
+ " -t  level         trace level [0]",
+ " -fl file          log file [str2str.trace]",
++" -fg file          flag file",
++" -fe file          event command for change state",
++" -fr string        revision string",
++" -ub               ublox efemeride transaltion mode",
+ " --deamon          detach from the console",
+ " --version         print version",
+ " -h                print help",
+@@ -138,10 +147,17 @@ static void printhelp(void)
+     exit(0);
+ }
+ /* signal handler ------------------------------------------------------------*/
++static char exitmsg[MAXSTRMSG]="";
+ static void sigfunc(int sig)
+ {
+     intrflg=1;
+ }
++void abortfunc(const char *msg)
++{
++    intrflg=1;
++    exitcode=1;
++    strcpy(exitmsg,msg);
++}
+ /* decode format -------------------------------------------------------------*/
+ static void decodefmt(char *path, int *fmt)
+ {
+@@ -279,7 +295,7 @@ int main(int argc, char **argv)
+ {
+     static char cmd_strs[MAXSTR][MAXRCVCMD]={"","","","",""};
+     static char cmd_periodic_strs[MAXSTR][MAXRCVCMD]={"","","","",""};
+-    const char ss[]={'E','-','W','C','C'};
++    /*const char ss[]={'E','-','W','C','C'};*/
+     strconv_t *conv[MAXSTR]={NULL};
+     double pos[3],stapos[3]={0},stadel[3]={0};
+     static char s1[MAXSTR][MAXSTRPATH]={{0}},s2[MAXSTR][MAXSTRPATH]={{0}};
+@@ -311,6 +327,7 @@ int main(int argc, char **argv)
+             if (!decodepath(argv[++i],types+n+1,paths[n+1],fmts+n+1)) return EXIT_FAILURE;
+             // Capture the current messages for this output stream.
+             msgs[n + 1] = msg;
++            msg = "";
+             n++;
+         }
+         else if (!strcmp(argv[i],"-p")&&i+3<argc) {
+@@ -347,6 +364,10 @@ int main(int argc, char **argv)
+         else if (!strcmp(argv[i],"-x"  )&&i+1<argc) proxy=argv[++i];
+         else if (!strcmp(argv[i],"-b"  )&&i+1<argc) opts[7]=atoi(argv[++i]);
+         else if (!strcmp(argv[i],"-fl" )&&i+1<argc) logfile=argv[++i];
++        else if (!strcmp(argv[i],"-fg" )&&i+1<argc) flagsetup(argv[++i]);
++        else if (!strcmp(argv[i],"-fe" )&&i+1<argc) eventsetup(argv[++i]);
++        else if (!strcmp(argv[i],"-fr" )&&i+1<argc) revisionsetup(argv[++i]);
++        else if (!strcmp(argv[i],"-ub" ))           ubxmodesetup();
+         else if (!strcmp(argv[i],"-t"  )&&i+1<argc) trlevel=atoi(argv[++i]);
+         else if (!strcmp(argv[i], "--deamon")) deamon=1;
+         else if (!strcmp(argv[i], "--version")) {
+@@ -356,7 +377,9 @@ int main(int argc, char **argv)
+         else if (*argv[i]=='-') printhelp();
+     }
+     if (n<=0) n=1; /* stdout */
+-    
++    if (*msg)
++       msgs[n] = msg;
++
+     for (i=0;i<n;i++) {
+         if (fmts[i+1]<=0) continue;
+         if (fmts[i+1]!=STRFMT_RTCM3) {
+@@ -416,23 +439,29 @@ int main(int argc, char **argv)
+         
+         /* get stream server status */
+         strsvrstat(&strsvr,stat,log_stat,byte,bps,strmsg);
+-        
++
+         /* show stream server status */
+-        for (i=0,p=buff;i<MAXSTR;i++) p+=sprintf(p,"%c",ss[stat[i]+1]);
++        //for (i=0,p=buff;i<MAXSTR;i++) p+=sprintf(p,"%c",ss[stat[i]+1]);
+ 
+-        char tstr[40];
+-        time2str(utc2gpst(timeget()),tstr,0);
+-        fprintf(stderr,"%s [%s] %10d B %7d bps %s\n",
+-                tstr,buff,byte[0],bps[0],strmsg);
+-        
+-        sleepms(dispint);
++        if (*strmsg) {
++           char tstr[40];
++           time2str(utc2gpst(timeget()),tstr,0);
++           fprintf(stderr,"%s %s\n", tstr,strmsg);
++        } else
++           sleepms(dispint);
+     }
+     for (i=0;i<MAXSTR;i++) {
+         if (*cmdfile[i]) readcmd(cmdfile[i],cmds[i],sizeof(cmd_strs[0]),1);
+     }
+     /* stop stream server */
+     strsvrstop(&strsvr,(const char **)cmds);
+-    
++
++    if (*exitmsg) {
++       char tstr[40];
++       time2str(utc2gpst(timeget()),tstr,0);
++       fprintf(stderr,"%s %s\n", tstr,exitmsg);
++    }
++
+     for (i=0;i<n;i++) {
+         strconvfree(conv[i]);
+     }
+@@ -440,5 +469,5 @@ int main(int argc, char **argv)
+         traceclose();
+     }
+     fprintf(stderr,"stream server stop\n");
+-    return 0;
++    return exitcode;
+ }
