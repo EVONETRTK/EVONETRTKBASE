@@ -1,0 +1,284 @@
+diff --git a/.gitattributes b/.gitattributes
+index cbf7014..2a75f69 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -36,3 +36,5 @@ config.* text eol=lf
+ Install/rtkbase_install.sh binary
+ /install.sh binary
+ *.exe binary
++*.py text eol=lf
++*.html text eol=lf
+diff --git a/Install/UM980_RTCM3_OUT.txt b/Install/UM980_RTCM3_OUT.txt
+index c069bd4..5343177 100644
+--- a/Install/UM980_RTCM3_OUT.txt
++++ b/Install/UM980_RTCM3_OUT.txt
+@@ -5,10 +5,7 @@ MODE BASE 1 TIME 60 1
+ rtcm1077 1
+ rtcm1087 1
+ rtcm1097 1
+-rtcm1107 1
+-rtcm1117 1
+ rtcm1127 1
+-rtcm1137 1
+ rtcm1230 1
+ rtcm1005 1
+ rtcm1006 1
+diff --git a/Install/UM982_RTCM3_OUT.txt b/Install/UM982_RTCM3_OUT.txt
+index 13f6f35..1cdda65 100644
+--- a/Install/UM982_RTCM3_OUT.txt
++++ b/Install/UM982_RTCM3_OUT.txt
+@@ -5,10 +5,7 @@ MODE BASE 1 TIME 60 1
+ rtcm1077 1
+ rtcm1087 1
+ rtcm1097 1
+-rtcm1107 1
+-rtcm1117 1
+ rtcm1127 1
+-rtcm1137 1
+ rtcm1230 1
+ rtcm1005 1
+ rtcm1006 1
+diff --git a/Install/UnicoreConfigure.sh b/Install/UnicoreConfigure.sh
+index 545cd01..f2df4f0 100644
+--- a/Install/UnicoreConfigure.sh
++++ b/Install/UnicoreConfigure.sh
+@@ -229,6 +229,7 @@ detect_usb() {
+          rm -rf "${BynavDevices}" "${CypressDevices}"
+          for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev); do
+              ID_SERIAL=''
++             ID_VENDOR_ID=''
+              syspath="${sysdevpath%/dev}"
+              devname="$(udevadm info -q name -p "${syspath}")"
+              if [[ "$devname" == "bus/"* ]]; then continue; fi
+@@ -237,6 +238,9 @@ detect_usb() {
+              #udevadm info -q property -p "${syspath}")"
+              #echo devname=${devname} ID_SERIAL=${ID_SERIAL}
+              if [[ -z "$ID_SERIAL" ]]; then continue; fi
++             # porte dei modem LTE (EigenComm/AirM2M, Quectel, SIMCom, Huawei, ZTE, Fibocom, Sierra, Telit):
++             # non sono ricevitori e interrogarle puo' bloccare il modem (Air780E: ttyACM1/2 -> crash del Pi)
++             if [[ "$ID_VENDOR_ID" =~ ^(19d1|2c7c|1e0e|12d1|19d2|2cb7|1199|1bc7)$ ]]; then continue; fi
+              IS_SERIAL=`echo ${DEVLINKS}|grep serial`
+              #echo devname=${devname} ID_SERIAL=${ID_SERIAL} IS_SERIAL=${IS_SERIAL}
+              if [[ -z "$IS_SERIAL" ]]; then continue; fi
+diff --git a/Install/create_release.sh b/Install/create_release.sh
+index 3b54ba2..6f66a62 100644
+--- a/Install/create_release.sh
++++ b/Install/create_release.sh
+@@ -35,7 +35,10 @@ tar --exclude-vcs \
+     RtkController_py.patch X5_SBF_OUT.txt T_SBF_OUT.txt \
+     H1_RTCM3_OUT.txt H1_SBF_OUT.txt H_RTCM3_OUT.txt H_SBF_OUT.txt \
+     raw2nmea_sh.patch network_infos_py.patch 77-mm-cypress-port-types.rules \
+-    LogManager_py.patch
++    LogManager_py.patch server_py_network.patch base_html_network.patch \
++    network_page.py network.html network.js network_routes.py \
++    network_access.html qrcode.min.js \
++    rtkbase_network_watch.service rtkbase_hotspot_dns.conf 90-rtkbase-network.conf     90-rtkbase-journald.conf
+ 
+ rm -f $BUNDLE_NAME
+ cat install_script.sh $ARCHIVE_NAME > $BUNDLE_NAME
+diff --git a/Install/install_script.sh b/Install/install_script.sh
+index 6e5db18..fffdd93 100644
+--- a/Install/install_script.sh
++++ b/Install/install_script.sh
+@@ -1,5 +1,6 @@
+ #!/bin/bash
+-NEW_VERSION=198
++# EVONETRTKBASE: versione ELT (3 cifre) + nostra revisione (2 cifre): 19801 = ELT 1.9.8, revisione 01
++NEW_VERSION=19801
+ 
+ RTKBASE_USER=rtkbase
+ RTKBASE_PATH=/usr/local/${RTKBASE_USER}
+@@ -52,6 +53,23 @@ RTKBASE_CONFIG_MANAGER_PATCH=RTKBaseConfigManager_py.patch
+ RTKCONTROLLER_PATCH=RtkController_py.patch
+ NETWORK_INFOS_PATCH=network_infos_py.patch
+ LOGMANAGER_PATCH=LogManager_py.patch
++SERVER_NETWORK_PATCH=server_py_network.patch
++BASE_NETWORK_PATCH=base_html_network.patch
++NETWORK_PAGE_PY=network_page.py
++NETWORK_HTML=network.html
++NETWORK_JS=network.js
++NETWORK_ACCESS_HTML=network_access.html
++QRCODE_JS=qrcode.min.js
++NETWORK_ACCESS_HTML=network_access.html
++QRCODE_JS=qrcode.min.js
++NETWORK_ROUTES_PY=network_routes.py
++NETWORK_WATCH_SERVICE=rtkbase_network_watch.service
++HOTSPOT_DNS_CONF=rtkbase_hotspot_dns.conf
++NETWORK_SYSCTL=90-rtkbase-network.conf
++JOURNALD_CONF=90-rtkbase-journald.conf
++JOURNALD_DIR=/etc/systemd/journald.conf.d
++SYSCTL_DIR=/etc/sysctl.d
++NM_DNSMASQ_SHARED=/etc/NetworkManager/dnsmasq-shared.d
+ UBX_PY_PATCH=ubx_py.patch
+ STATUS_PATCH=status_js.patch
+ SETTING_PATCH=settings_js.patch
+@@ -421,6 +439,23 @@ is_ELT07x5(){
+    return 1
+ }
+ 
++configure_zero2_power(){
++  # Pagina Rete: sul Pi Zero 2 W con modem LTE (Air780E) ogni mA risparmiato allarga il margine
++  # sui picchi di corrente del modem: Bluetooth e LED spenti. NON abbassare arm_freq: con 800 MHz
++  # (02-05/10) il ricevitore sulla USB restava muto per minuti (timeout dwc_otg "FSM NP transfer").
++  BOOTCONFIG=$1/${CONFIG}
++  [[ -f ${BOOTCONFIG} ]] || return
++  grep -q "Raspberry Pi Zero 2" /proc/device-tree/model 2>/dev/null || return
++  grep -q "^DO NOT EDIT THIS FILE" ${BOOTCONFIG} && return
++  grep -q "^# EVONETRTKBASE: meno consumi" ${BOOTCONFIG} && return
++  printf '%s\n' "[all]" "# EVONETRTKBASE: meno consumi (picchi del modem LTE)" \
++     "dtoverlay=disable-bt" "dtparam=act_led_trigger=none" "dtparam=act_led_activelow=on" >> ${BOOTCONFIG}
++  ExitCodeCheck $?
++  systemctl disable bluetooth.service >/dev/null 2>&1
++  echo ${BOOTCONFIG}: Pi Zero 2 W a basso consumo
++  NEEDREBOOT=Y
++}
++
+ check_boot_configiration(){
+    echo '################################'
+    if have_full; then
+@@ -444,6 +479,7 @@ check_boot_configiration(){
+       replace_config /boot
+       replace_config /boot/firmware
+    fi
++   configure_zero2_power /boot/firmware
+    add_pps_module
+    set_permanenet_journals
+    #hciuart_enabled=$(systemctl is-enabled hciuart.service)
+@@ -513,6 +549,8 @@ install_additional_utilies(){
+ 
+    NEED_INSTALL=
+    install_packet_if_not_installed avahi-utils
++   install_packet_if_not_installed iw
++   install_packet_if_not_installed dnsmasq-base
+    install_packet_if_not_installed avahi-daemon
+    install_packet_if_not_installed uuid
+    install_packet_if_not_installed uhubctl
+@@ -762,7 +800,8 @@ stop_rtkbase_services(){
+                   ${CHECK_INTERNET_SERVICE} \
+                   ${CHECK_SATELITES_SERVICE} \
+                   ${SEPTENTRIO_NAT_SERVICE} \
+-                  ${DHCP_SERVICE}"
++                  ${DHCP_SERVICE} \
++                  ${NETWORK_WATCH_SERVICE}"
+      #${SYSSERVICE} excluded, it's not need be restarted
+      if [[ "${ONLINE_UPDATE}" != "UPDATE" ]]; then
+         serviceList="${serviceList} rtkbase_web.service"
+@@ -1135,6 +1174,8 @@ patch_rtkbase(){
+    patch_one ${RTKBASE_WEB}/static/settings.js        ${SETTING_PATCH}
+    patch_one ${RTKBASE_WEB}/templates/settings.html   ${SETTING_HTML_PATCH}
+    patch_one ${RTKBASE_WEB}/templates/base.html       ${BASE_PATCH}
++   patch_one ${RTKBASE_WEB}/server.py                 ${SERVER_NETWORK_PATCH}
++   patch_one ${RTKBASE_WEB}/templates/base.html       ${BASE_NETWORK_PATCH}
+    patch_one ${RTKBASE_WEB}/rtklib_configs/rtkbase_ppp-static_default.conf ${PPP_CONF_PATCH}
+    patch_one ${RTKBASE_TOOLS}/gps/ubx.py              ${UBX_PY_PATCH}
+    patch_one ${RTKBASE_TOOLS}/raw2nmea/raw2nmea.sh    ${RAW2NMEA_SH_PATCH}
+@@ -1338,6 +1379,14 @@ configure_for_unicore(){
+    copy_file "${CONFF9P}" "${RTKBASE_RECV}"
+    copy_file "${CFGF9P}" "${RTKBASE_RECV}"
+    copy_file "${FAVICON}" "${WEB_IMAGES}"
++   copy_file "${NETWORK_PAGE_PY}" "${RTKBASE_WEB}"
++   copy_file "${NETWORK_HTML}" "${RTKBASE_WEB}/templates"
++   copy_file "${NETWORK_JS}" "${RTKBASE_WEB}/static"
++   copy_file "${NETWORK_ACCESS_HTML}" "${RTKBASE_WEB}/templates"
++   copy_file "${QRCODE_JS}" "${RTKBASE_WEB}/static"
++   copy_file "${NETWORK_ACCESS_HTML}" "${RTKBASE_WEB}/templates"
++   copy_file "${QRCODE_JS}" "${RTKBASE_WEB}/static"
++   copy_file "${NETWORK_ROUTES_PY}" "${RTKBASE_WEB}"
+ 
+    copy_root_script "${SEPTENTRIO_NAT}" "${RTKBASE_GIT}"
+    copy_root_script "${START_ELT0x33}" "${RTKBASE_PATH}"
+@@ -1345,6 +1394,7 @@ configure_for_unicore(){
+ 
+    copy_root "${SEPTENTRIO_NAT_SERVICE}" "${SERVICE_PATH}"
+    copy_root "${MODEM_WEB_PROXY_SERVICE}" "${SERVICE_PATH}"
++   copy_root "${NETWORK_WATCH_SERVICE}" "${SERVICE_PATH}"
+    copy_root "${ELT0x33_RULES}" "${UDEV_RULES}"
+    copy_root "${SEPTENTRIO_LINK}" "${LINK_RULES}"
+    copy_root "${MOBILE_LINK}" "${LINK_RULES}"
+@@ -1355,12 +1405,37 @@ configure_for_unicore(){
+    mkdir -p ${NETWORK_CONF}
+    ExitCodeCheck $?
+    copy_root "${AUTOCONNECT_CONF}" "${NETWORK_CONF}"
++   #echo mkdir -p ${NM_DNSMASQ_SHARED}
++   mkdir -p ${NM_DNSMASQ_SHARED}
++   ExitCodeCheck $?
++   copy_root "${HOTSPOT_DNS_CONF}" "${NM_DNSMASQ_SHARED}"
++   copy_root "${NETWORK_SYSCTL}" "${SYSCTL_DIR}"
++   #echo mkdir -p ${JOURNALD_DIR}
++   mkdir -p ${JOURNALD_DIR}
++   ExitCodeCheck $?
++   copy_root "${JOURNALD_CONF}" "${JOURNALD_DIR}"
++   if ! ischroot; then
++      #echo sysctl -p ${SYSCTL_DIR}/${NETWORK_SYSCTL}
++      sysctl -q -p ${SYSCTL_DIR}/${NETWORK_SYSCTL}
++      #echo journalctl --vacuum-size=100M
++      journalctl --vacuum-size=100M >/dev/null 2>&1
++   fi
+    if ! ischroot; then
+       if systemctl is-enabled --quiet NetworkManager.service 2>/dev/null; then
+          #echo nmcli general reload
+          nmcli general reload
+          ExitCodeCheck $?
+       fi
++      #echo systemctl daemon-reload
++      systemctl daemon-reload
++   fi
++   #echo systemctl enable ${NETWORK_WATCH_SERVICE}
++   systemctl enable ${NETWORK_WATCH_SERVICE}
++   ExitCodeCheck $?
++   if ! ischroot; then
++      #echo systemctl restart ${NETWORK_WATCH_SERVICE}
++      systemctl restart ${NETWORK_WATCH_SERVICE}
++      ExitCodeCheck $?
+    fi
+ 
+    restart_rtkbase_if_started
+@@ -1384,7 +1459,8 @@ configure_settings(){
+    sed="sudo -u ${RTKBASE_USER} sed -i"
+    #echo sed=${sed}
+ 
+-   POINTED_VERSION=`echo ${NEW_VERSION} | sed 's/^\(.\)\(.\)\(.\)/\1.\2.\3/'`
++   # 198 -> 1.9.8 (ELT), 19801 -> 1.9.8-01 (EVONETRTKBASE)
++   POINTED_VERSION=`echo ${NEW_VERSION} | sed 's/^\(.\)\(.\)\(.\)$/\1.\2.\3/;t;s/^\(.\)\(.\)\(.\)\(..*\)$/\1.\2.\3-\4/'`
+    #echo POINTED_VERSION=${POINTED_VERSION}
+    ${sed} s/^elt_version=.*/elt_version=${POINTED_VERSION}/ "${SETTINGS_DEFAULT}"
+ 
+@@ -1794,7 +1870,12 @@ BASE_EXTRACT="${NMEACONF} ${CONF980} ${CONF982} ${CONFBYNAV} ${UNICORE_CONFIGURE
+               ${CFGX20P} ${CONFF9P} ${CFGF9P} ${RTKCONTROLLER_PATCH} ${CONFX5SBF} \
+               ${CONFTSBF} ${CONFH1RTCM3} ${CONFH1SBF} ${CONFHRTCM3} ${CONFHSBF}
+               ${RAW2NMEA_SH_PATCH} ${NETWORK_INFOS_PATCH} ${CYPRESS_MODEM}
+-              ${LOGMANAGER_PATCH}"
++              ${LOGMANAGER_PATCH} ${SERVER_NETWORK_PATCH} ${BASE_NETWORK_PATCH}
++              ${NETWORK_PAGE_PY} ${NETWORK_HTML} ${NETWORK_JS} ${NETWORK_ROUTES_PY}
++              ${NETWORK_ACCESS_HTML} ${QRCODE_JS}
++              ${NETWORK_ACCESS_HTML} ${QRCODE_JS}
++              ${NETWORK_WATCH_SERVICE} ${HOTSPOT_DNS_CONF} ${NETWORK_SYSCTL}
++              ${JOURNALD_CONF}"
+ 
+ FILES_EXTRACT="${BASE_EXTRACT} uninstall.sh"
+ FILES_DELETE="${CONFIG} ${CONFIG_ORIG} ${CONFIG_ORIG2}"
+diff --git a/Install/uninstall.sh b/Install/uninstall.sh
+index 3e74324..6f68b9b 100644
+--- a/Install/uninstall.sh
++++ b/Install/uninstall.sh
+@@ -17,7 +17,8 @@ serviceList="RtkbaseSystemConfigure.service \
+              rtkbase_check_satelites.service \
+              rtkbase_septentrio_NAT.service \
+              rtkbase_DHCP.service \
+-             rtkbase_modem_web_proxy.service"
++             rtkbase_modem_web_proxy.service \
++             rtkbase_network_watch.service"
+ 
+ for service_name in ${serviceList}; do
+     enabled=`systemctl is-enabled ${service_name} 2>/dev/null`
+@@ -28,6 +29,10 @@ for service_name in ${serviceList}; do
+ done
+ 
+ systemctl daemon-reload
++rm -f /etc/udev/rules.d/92-elt-gnss-port.rules
++rm -f /etc/NetworkManager/dnsmasq-shared.d/rtkbase_hotspot_dns.conf
++rm -f /etc/sysctl.d/90-rtkbase-network.conf
++rm -f /etc/systemd/journald.conf.d/90-rtkbase-journald.conf
+ 
+ RTKBASE_UNINSTALL=${RTKBASE_PATH}/rtkbase/tools/uninstall.sh
+ #echo RTKBASE_UNINSTAL=${RTKBASE_UNINSTALL}

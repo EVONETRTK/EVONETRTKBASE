@@ -229,6 +229,7 @@ detect_usb() {
          rm -rf "${BynavDevices}" "${CypressDevices}"
          for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev); do
              ID_SERIAL=''
+             ID_VENDOR_ID=''
              syspath="${sysdevpath%/dev}"
              devname="$(udevadm info -q name -p "${syspath}")"
              if [[ "$devname" == "bus/"* ]]; then continue; fi
@@ -237,6 +238,9 @@ detect_usb() {
              #udevadm info -q property -p "${syspath}")"
              #echo devname=${devname} ID_SERIAL=${ID_SERIAL}
              if [[ -z "$ID_SERIAL" ]]; then continue; fi
+             # porte dei modem LTE (EigenComm/AirM2M, Quectel, SIMCom, Huawei, ZTE, Fibocom, Sierra, Telit):
+             # non sono ricevitori e interrogarle puo' bloccare il modem (Air780E: ttyACM1/2 -> crash del Pi)
+             if [[ "$ID_VENDOR_ID" =~ ^(19d1|2c7c|1e0e|12d1|19d2|2cb7|1199|1bc7)$ ]]; then continue; fi
              IS_SERIAL=`echo ${DEVLINKS}|grep serial`
              #echo devname=${devname} ID_SERIAL=${ID_SERIAL} IS_SERIAL=${IS_SERIAL}
              if [[ -z "$IS_SERIAL" ]]; then continue; fi

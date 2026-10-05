@@ -13,3 +13,8 @@ Windows/Ini.cmd
 *.xz
 *.25*
 *.26*
+# EVONETRTKBASE
+__pycache__/
+rete/test/flaskapp/static/
+rete/test/flaskapp/templates/network*.html
+venv/

@@ -17,7 +17,8 @@ serviceList="RtkbaseSystemConfigure.service \
              rtkbase_check_satelites.service \
              rtkbase_septentrio_NAT.service \
              rtkbase_DHCP.service \
-             rtkbase_modem_web_proxy.service"
+             rtkbase_modem_web_proxy.service \
+             rtkbase_network_watch.service"
 
 for service_name in ${serviceList}; do
     enabled=`systemctl is-enabled ${service_name} 2>/dev/null`
@@ -28,6 +29,10 @@ for service_name in ${serviceList}; do
 done
 
 systemctl daemon-reload
+rm -f /etc/udev/rules.d/92-elt-gnss-port.rules
+rm -f /etc/NetworkManager/dnsmasq-shared.d/rtkbase_hotspot_dns.conf
+rm -f /etc/sysctl.d/90-rtkbase-network.conf
+rm -f /etc/systemd/journald.conf.d/90-rtkbase-journald.conf
 
 RTKBASE_UNINSTALL=${RTKBASE_PATH}/rtkbase/tools/uninstall.sh
 #echo RTKBASE_UNINSTAL=${RTKBASE_UNINSTALL}

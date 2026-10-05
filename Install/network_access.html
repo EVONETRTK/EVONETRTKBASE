@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scheda di accesso</title>
+<style>
+  :root { --fg:#111; --muted:#555; --line:#bbb; --accent:#0b5cad; --warn:#b42318; --bg:#fff; --soft:#f3f5f8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
+  .page { max-width:820px; margin:0 auto; padding:20px 16px 40px; }
+  h1 { font-size:22px; margin:0 0 2px; }
+  h3 { font-size:14px; margin:12px 0 2px; break-after:avoid; }
+  .step { break-inside:avoid; }
+  h2 { font-size:16px; margin:22px 0 8px; padding-bottom:4px; border-bottom:2px solid var(--accent); color:var(--accent); break-after:avoid; }
+  .sub { color:var(--muted); font-size:13px; }
+  table { width:100%; border-collapse:collapse; margin:4px 0; }
+  td { padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  td:first-child { width:38%; color:var(--muted); }
+  .v { font-family:ui-monospace,Consolas,monospace; font-size:14px; word-break:break-all; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; }
+  .head > div { flex:1 1 300px; }
+  table.ident { flex:0 1 360px; width:auto; border:2px solid var(--accent); border-radius:6px; border-collapse:separate; border-spacing:0; }
+  table.ident td { border-bottom:1px solid var(--line); padding:4px 8px; }
+  table.ident tr:last-child td { border-bottom:0; }
+  table.ident td:first-child { width:auto; white-space:nowrap; }
+  .blank { display:inline-block; min-width:200px; border-bottom:1px solid var(--fg); height:1.2em; }
+  .qrs { display:flex; flex-wrap:wrap; gap:18px; margin:8px 0; }
+  .qr { text-align:center; font-size:12px; width:170px; }
+  .qr svg { width:150px; height:150px; display:block; margin:0 auto 4px; }
+  ol { margin:4px 0; padding-left:22px; } li { margin:3px 0; }
+  .note { background:var(--soft); border-left:4px solid var(--accent); padding:8px 10px; margin:8px 0; font-size:13px; }
+  .warn { border-left-color:var(--warn); }
+  .bad { color:var(--warn); font-weight:700; }
+  .conf { color:var(--warn); font-weight:700; font-size:12px; letter-spacing:.5px; margin-top:6px; }
+  pre.notes { white-space:pre-wrap; font-family:ui-monospace,Consolas,monospace; font-size:13px; margin:0; }
+  .bar { background:var(--soft); border:1px solid var(--line); border-radius:8px; padding:12px; margin:0 0 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .bar input { padding:7px 9px; font-size:15px; border:1px solid var(--line); border-radius:6px; min-width:0; flex:1 1 160px; }
+  .bar button { padding:8px 12px; font-size:14px; border:0; border-radius:6px; background:var(--accent); color:#fff; cursor:pointer; }
+  .bar button.alt { background:#666; }
+  #msg { width:100%; font-size:13px; color:var(--warn); }
+  @media (max-width:640px) { td:first-child { width:45%; } }
+  @media print {
+    .noprint { display:none !important; }
+    body { font-size:10.5px; line-height:1.35; }
+    .page { padding:0; max-width:none; }
+    h1 { font-size:18px; }
+    h2 { font-size:13.5px; margin:10px 0 5px; }
+    h3 { font-size:11.5px; margin:6px 0 1px; }
+    td { padding:2.5px 6px; }
+    .v { font-size:11px; }
+    .note { padding:5px 8px; font-size:10.5px; margin:5px 0; }
+    li { margin:1px 0; }
+    .qrs { margin:4px 0; gap:14px; }
+    .qr { width:130px; font-size:10px; }
+    .qr svg { width:100px; height:100px; }
+    section { break-inside:avoid; }
+    @page { size:A4; margin:10mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="bar noprint">
+    <input id="pw" type="password" placeholder="Password del pannello (admin)" autocomplete="current-password">
+    <button id="show">Mostra le password</button>
+    <button id="print" class="alt">Stampa / salva PDF</button>
+    <a href="{{ url_for('network.page') }}" style="margin-left:auto">&larr; Torna alla pagina Rete</a>
+    <div id="msg">Senza la password del pannello la scheda si stampa con le caselle delle password vuote, da compilare a mano.</div>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>Scheda di accesso &mdash; BASE <span id="h-name">-</span></h1>
+      <div class="sub">Generata dalla base il <span id="h-date">-</span></div>
+      <div class="conf" id="conf">DOCUMENTO RISERVATO &mdash; CONTIENE PASSWORD: CUSTODIRE</div>
+    </div>
+    <table class="ident" id="t-ident"></table>
+  </div>
+
+  <section>
+    <h2>1. Accesso in locale (stessa rete della base)</h2>
+    <table id="t-local"></table>
+    <div class="qrs" id="qr-local"></div>
+  </section>
+
+  <section>
+    <h2>2. Accesso di emergenza (rete WiFi della base)</h2>
+    <p style="margin:4px 0" id="ap-intro"></p>
+    <table id="t-ap"></table>
+    <div class="qrs" id="qr-ap"></div>
+  </section>
+
+  <section>
+    <h2>3. Accesso da remoto e caster NTRIP</h2>
+    <table id="t-remote"></table>
+    <div class="note">Da qualsiasi posto si vede comunque se la base lavora: il mountpoint compare nell'elenco del caster solo quando la base trasmette.</div>
+  </section>
+
+  <section>
+    <h2>4. Come collegarsi, passo per passo</h2>
+    <div id="howto"></div>
+  </section>
+
+  <section>
+    <h2>5. Utenti e password</h2>
+    <table id="t-cred"></table>
+    <div class="note warn">Le password del pannello e degli utenti SSH la base le conserva cifrate e non le puo' mostrare: vanno scritte a mano nelle caselle.</div>
+  </section>
+
+  <section>
+    <h2>6. Cosa fare se&hellip;</h2>
+    <ol>
+      <li><b>Il pannello non si apre in locale:</b> controllare di essere sulla stessa rete. Provare <span class="v" id="i-mdns">-</span> (su alcuni Android non funziona). Se l'IP e' cambiato, si legge nel router tra i dispositivi collegati, con il nome <span class="v" id="i-host">-</span>.</li>
+      <li><b>Da remoto non risponde:</b> provare sia Tailscale sia Raspberry Pi Connect (sezione 3). Poi attendere 10 minuti: la base si riavvia da sola se il sistema si blocca (watchdog, 1 minuto), se il kernel va in errore (10 secondi) o se il chip WiFi si blocca (al massimo una volta ogni 6 ore); i servizi della base fermi ripartono da soli entro 1 minuto.</li>
+      <li><b>Ancora niente:</b> sul posto, collegarsi alla rete di emergenza (sezione 2) e aprire <span class="v">http://10.42.0.1/network</span>: la pagina Rete mostra connessioni, temperature e registro eventi.</li>
+      <li><b>Neanche la rete di emergenza compare:</b> togliere l'alimentazione, aspettare 10 secondi, ridarla e attendere 2 minuti. Se la base non riparte piu', la scheda SD puo' essersi rovinata (succede dopo molti spegnimenti improvvisi): va riscritta e reinstallata.</li>
+      <li><b>La base risponde ma il mountpoint non e' in linea:</b> pagina Rete &rarr; Registro eventi. "Ricevitore GNSS senza dati" con pochi satelliti = l'antenna non vede abbastanza cielo. Controllare anche cavo e connettore dell'antenna.</li>
+      <li><b>Temperature alte</b> (avviso nella pagina Rete): togliere la base dal sole, dare aria al contenitore. Sopra gli 80 gradi il ricevitore e il chip WiFi si bloccano.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>7. Operazioni utili</h2>
+    <ol>
+      <li><b>Aggiornare il software:</b> pagina Rete &rarr; "Aggiornamenti del software" mostra la versione installata e se ce n'e' una nuova (canale stabile o prova). Per installarla: Settings &rarr; <b>Check update</b> &rarr; Update (alcuni minuti, la base si ferma). Senza internet: <span class="v">Settings?update=manual</span> e caricare un <span class="v">install.sh</span> di EVONETRTKBASE. Prima di ogni aggiornamento la base salva una copia di sicurezza in <span class="v">/usr/local/rtkbase/backup</span>.</li>
+      <li><b>Cambiare le password:</b> pannello &rarr; Settings (password del pannello); in SSH il comando <span class="v">passwd</span> (utente); pagina Rete &rarr; Hotspot (rete di emergenza); Settings &rarr; NTRIP A (caster). Poi ristampare questa scheda.</li>
+      <li><b>Salvare le impostazioni di rete:</b> pagina Rete &rarr; Esporta (il file contiene password: custodirlo).</li>
+      <li><b>Riavviare a distanza:</b> pannello &rarr; Settings &rarr; Reboot, oppure in SSH <span class="v">sudo reboot</span>.</li>
+    </ol>
+  </section>
+</div>
+
+<script src="{{ url_for('static', filename='qrcode.min.js') }}"></script>
+{% raw %}
+<script>
+(function () {
+  let st = null, sec = null;
+  const $ = id => document.getElementById(id);
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const v = t => '<span class="v">' + esc(t) + '</span>';
+  const blank = '<span class="blank"></span>';
+  const pw = val => sec ? (val ? v(val) : '<i>(nessuna)</i>') : blank;
+  function rows(id, list) {
+    $(id).innerHTML = list.filter(r => r).map(r => '<tr><td>' + esc(r[0]) + '</td><td>' + r[1] + '</td></tr>').join('');
+  }
+  function qr(text, label) {
+    try {
+      const q = qrcode(0, 'M');
+      q.addData(text);
+      q.make();
+      return '<div class="qr">' + q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }) + esc(label) + '</div>';
+    } catch (e) { return ''; }
+  }
+  const wifiEsc = s => String(s || '').replace(/([\\;,:"])/g, '\\$1');
+  const kindName = { ethernet: 'Ethernet', wifi: 'WiFi', lte: 'LTE' };
+
+  function render() {
+    const s = st || {};
+    const a = s.access || {};
+    const host = a.hostname || '-';
+    const port = a.port && a.port !== '80' ? ':' + a.port : '';
+    const url = ip => 'http://' + ip + port;
+    document.title = 'Scheda di accesso base ' + host;
+    $('h-name').textContent = host;
+    $('h-date').textContent = new Date().toLocaleString('it-IT');
+    $('conf').style.visibility = sec ? 'visible' : 'hidden';
+    const mdns = 'http://' + host + '.local' + port;
+    $('i-mdns').textContent = mdns;
+    $('i-host').textContent = host;
+
+    const sats = s.satellites ? s.satellites.tracked + ' tracciati, ' + s.satellites.used + ' usati' : null;
+    rows('t-ident', [
+      ['Nome', '<b>' + v(host) + '</b>'],
+      ['Software', 'ELT_RTKBase ' + v(s.elt_version || '-') + ' (RTKBase ' + esc(s.rtkbase_version || '-') + ') con pagina Rete'],
+      s.board && ['Scheda', esc(s.board)],
+      ['Ricevitore GNSS', esc(s.receiver || '-') + (s.receiver_port ? ' su ' + v('/dev/' + s.receiver_port) : '')],
+      s.modem && ['Modem', esc(s.modem) + (s.apn ? ', APN ' + v(s.apn) : '')],
+      ['Posizione della base', s.position ? v(s.position) : 'automatica (rilevata dal ricevitore a ogni avvio)'],
+      sats && ['Satelliti adesso', esc(sats)],
+    ]);
+
+    const local = a.local || [];
+    const webPw = a.web_default_password ? v('admin') + ' <span class="bad">(DI FABBRICA: cambiarla)</span>' : blank;
+    rows('t-local', local.map(l => ['Pannello (' + (kindName[l.kind] || l.kind) + ')', v(url(l.ip))]).concat([
+      ['Indirizzo con il nome', v(mdns)],
+      ['Utente / password', v('admin') + ' / ' + webPw],
+      ['Nota', 'L\'indirizzo IP lo assegna il router e puo\' cambiare. Per tenerlo fisso, riservarlo nel router (DHCP statico).'],
+    ]));
+    $('qr-local').innerHTML = local.length ? qr(url(local[0].ip) + '/', 'Apri il pannello (' + local[0].ip + ')') : '';
+
+    const delayMin = Math.round((s.hotspot_delay || 120) / 60);
+    $('ap-intro').textContent = s.hotspot_enabled
+      ? 'Se nessuna connessione porta internet per ' + delayMin + ' minuti, la base accende da sola una sua rete WiFi: serve sul posto, quando non risponde in nessun altro modo. Chi si collega viene portato alla pagina Rete.'
+      : 'ATTENZIONE: la rete di emergenza e\' disattivata (pagina Rete, riquadro Hotspot).';
+    rows('t-ap', [
+      ['Nome della rete (SSID)', v(a.hotspot_ssid || '-')],
+      ['Password della rete', pw(sec && sec.hotspot_password)],
+      ['Indirizzo del pannello', v('http://' + (a.hotspot_ip || '10.42.0.1') + '/network')],
+      ['Utente / password pannello', v('admin') + ' / ' + webPw],
+    ]);
+    let qa = '';
+    if (sec && a.hotspot_ssid) qa += qr('WIFI:T:WPA;S:' + wifiEsc(a.hotspot_ssid) + ';P:' + wifiEsc(sec.hotspot_password) + ';;', 'Collegati alla rete della base');
+    qa += qr('http://' + (a.hotspot_ip || '10.42.0.1') + '/network', 'Poi apri la pagina Rete');
+    $('qr-ap').innerHTML = qa;
+
+    const ts = a.tailscale;
+    const users = s.ssh_users && s.ssh_users.length ? s.ssh_users : ['utente'];
+    const sshHost = ts && ts.ip ? ts.ip : (local[0] ? local[0].ip : host);
+    const c = s.caster || {};
+    const caster = (c.host || '-') + ':' + (c.port || '2101');
+    const connectState = { 'collegato': 'attivo', 'non registrato': '<span class="bad">installato ma NON registrato</span>', 'spento': '<span class="bad">spento</span>' };
+    rows('t-remote', [
+      ts ? ['Tailscale', v(url(ts.ip)) + (ts.name ? '<br>' + v(url(ts.name)) : '') + (ts.online ? '' : ' <span class="bad">(non collegato ora)</span>')]
+         : ['Tailscale', '<span class="bad">non installato</span>'],
+      ['Tailscale: come si usa', 'installare Tailscale sul PC o sul telefono ed entrare con lo stesso account della base'],
+      s.rpi_connect && ['Raspberry Pi Connect', (connectState[s.rpi_connect] || esc(s.rpi_connect)) + ': ' + v('connect.raspberrypi.com') + ' &rarr; base &rarr; Remote shell'],
+      ['Terminale (SSH)', users.map(u => v('ssh ' + u + '@' + sshHost)).join('<br>')],
+      ['Caster NTRIP', v(caster)],
+      ['Mountpoint della base', v(c.mountpoint || '-') + (c.active ? ' &nbsp;(trasmissione attiva)' : ' &nbsp;<span class="bad">(trasmissione FERMA ora)</span>')],
+      ['Verifica da remoto', 'elenco delle sorgenti del caster: ' + v('http://' + caster + '/')],
+      ['Rete in uso adesso', v(s.internet_device || '-')],
+    ]);
+
+    const step = (title, items) => '<div class="step"><h3>' + title + '</h3><ol>' + items.filter(i => i).map(i => '<li>' + i + '</li>').join('') + '</ol></div>';
+    const panelLogin = 'Si apre la pagina di accesso del pannello: password ' + webPw + ' (utente non richiesto).';
+    const tsAccount = sec ? (sec.tailscale_account ? v(sec.tailscale_account) : '<i>(non letto)</i>') : blank;
+    let howto = '';
+    howto += step('In locale (casa, ufficio: stessa rete della base)', [
+      'Collegare il PC o il telefono alla stessa rete della base' + (local[0] ? ' (quella del suo indirizzo ' + v(local[0].ip) + ')' : '') + '.',
+      'Aprire il browser (Chrome, Edge, Safari) e scrivere nella barra degli indirizzi ' + (local[0] ? v(url(local[0].ip)) + ', oppure ' : '') + v(mdns) + '. Dal telefono si puo\' inquadrare il QR della sezione 1.',
+      panelLogin,
+      'Per la gestione della rete (WiFi, LTE, hotspot, temperature) scegliere la voce <b>Rete</b> nel menu.',
+    ]);
+    howto += step('Da fuori, con Tailscale (rete privata gratuita)', [
+      'Solo la prima volta: installare Tailscale da ' + v('tailscale.com/download') + ' (Windows, Mac) oppure dal Play Store / App Store (telefono).',
+      'Aprire Tailscale ed entrare con l\'account della base: ' + tsAccount + ' (stesso metodo di accesso usato per crearlo, es. Google).',
+      'Controllare che Tailscale risulti <b>attivo / Connected</b>: nell\'elenco dei dispositivi deve comparire ' + v(host) + '.',
+      ts && ts.ip ? 'Aprire nel browser ' + v(url(ts.ip)) + (ts.name ? ' oppure ' + v(url(ts.name)) : '') + '.' : 'Tailscale non e\' configurato sulla base: questo accesso oggi non funziona.',
+      panelLogin,
+      'Finito il lavoro si puo\' disattivare Tailscale sul proprio dispositivo: la base resta comunque raggiungibile.',
+    ]);
+    howto += step('Sul posto, con la rete di emergenza della base', [
+      'La rete compare da sola se la base non ha internet da ' + delayMin + ' minuti' + (s.hotspot_enabled ? '' : ' <span class="bad">(oggi e\' disattivata)</span>') + '.',
+      'Con il telefono inquadrare il QR "Collegati alla rete della base" (sezione 2), oppure scegliere la rete WiFi ' + v(a.hotspot_ssid || '-') + ' e inserire la password ' + pw(sec && sec.hotspot_password) + '.',
+      'Se il telefono avvisa "rete senza internet", scegliere <b>Resta collegato / Usa comunque</b>.',
+      'Di solito la pagina Rete si apre da sola; altrimenti aprire nel browser ' + v('http://' + (a.hotspot_ip || '10.42.0.1') + '/network') + '. ' + panelLogin,
+      'Dalla pagina Rete scegliere una rete WiFi funzionante o controllare l\'LTE: appena la base torna in internet la rete di emergenza si spegne.',
+    ]);
+    if (s.rpi_connect) howto += step('Da fuori, con Raspberry Pi Connect (solo terminale)', [
+      'Aprire ' + v('https://connect.raspberrypi.com') + ' ed entrare con il Raspberry Pi ID usato per registrare la base' + (s.rpi_connect === 'collegato' ? '' : ' <span class="bad">(la base oggi non e\' registrata: va fatto una volta con il comando ' + v('rpi-connect signin') + ')</span>') + '.',
+      'Nell\'elenco scegliere ' + v(host) + ' &rarr; <b>Connect via</b> &rarr; <b>Remote shell</b>: si apre un terminale nel browser, senza password.',
+      'Serve quando Tailscale non risponde: per esempio ' + v('sudo systemctl restart tailscaled') + ' oppure ' + v('sudo reboot') + '.',
+    ]);
+    howto += step('Terminale SSH (per l\'assistenza tecnica)', [
+      'Su Windows aprire <b>PowerShell</b> (tasto Start, scrivere "PowerShell"); su Mac il <b>Terminale</b>. Per arrivare da fuori serve Tailscale attivo.',
+      'Scrivere ' + users.map(u => v('ssh ' + u + '@' + sshHost)).join(' oppure ') + ' e premere Invio' + (local[0] ? ' (in locale anche ' + v('ssh ' + users[0] + '@' + local[0].ip) + ')' : '') + '.',
+      'Alla prima connessione rispondere <b>yes</b>, poi inserire la password dell\'utente (non si vede mentre si scrive).',
+    ]);
+    $('howto').innerHTML = howto;
+
+    const cred = [['Pannello della base', v('admin') + ' / ' + webPw]];
+    users.forEach(u => cred.push(['Utente SSH ' + u, blank]));
+    cred.push(['Rete di emergenza ' + (a.hotspot_ssid || ''), pw(sec && sec.hotspot_password)]);
+    if (sec) {
+      (sec.wifi || []).forEach(n => cred.push(['Rete WiFi ' + n.ssid, pw(n.password)]));
+    } else {
+      cred.push(['Reti WiFi salvate', blank]);
+    }
+    cred.push(['Caster: invio della base', ['caster ' + v(caster), 'mountpoint ' + v(c.mountpoint || '-'),
+      (sec && sec.caster_user ? 'utente ' + v(sec.caster_user) + '<br>' : '') + 'password ' + pw(sec && sec.caster_password)].join('<br>')]);
+    cred.push(['Account Tailscale', tsAccount]);
+    cred.push(['SIM: APN / PIN', v(s.apn || '-') + ' / ' + (sec ? (sec.sim_pin ? v(sec.sim_pin) : '<i>(nessun PIN)</i>') : blank)]);
+    if (sec && sec.notes) cred.push(['Note di accesso (pagina Rete)', '<pre class="notes">' + esc(sec.notes) + '</pre>']);
+    rows('t-cred', cred);
+  }
+
+  async function load() {
+    try {
+      const r = await fetch('/api/network/access_card', { cache: 'no-store' });
+      st = await r.json();
+    } catch (e) { $('msg').textContent = 'Impossibile leggere lo stato della base: ' + e.message; }
+    render();
+  }
+
+  $('show').addEventListener('click', async () => {
+    $('msg').textContent = '';
+    try {
+      const r = await fetch('/api/network/access_secrets', {
+        method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: $('pw').value }),
+      });
+      if (r.status === 403) { $('msg').textContent = 'Password errata.'; return; }
+      if (!r.ok) { $('msg').textContent = 'Errore ' + r.status; return; }
+      sec = await r.json();
+      $('pw').value = '';
+      $('msg').textContent = 'Password mostrate. Ricordarsi di custodire la stampa.';
+      render();
+    } catch (e) { $('msg').textContent = 'Errore: ' + e.message; }
+  });
+  $('pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('show').click(); });
+  $('print').addEventListener('click', () => window.print());
+  load();
+})();
+</script>
+{% endraw %}
+</body>
+</html>

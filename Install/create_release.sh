@@ -35,7 +35,10 @@ tar --exclude-vcs \
     RtkController_py.patch X5_SBF_OUT.txt T_SBF_OUT.txt \
     H1_RTCM3_OUT.txt H1_SBF_OUT.txt H_RTCM3_OUT.txt H_SBF_OUT.txt \
     raw2nmea_sh.patch network_infos_py.patch 77-mm-cypress-port-types.rules \
-    LogManager_py.patch
+    LogManager_py.patch server_py_network.patch base_html_network.patch \
+    network_page.py network.html network.js network_routes.py \
+    network_access.html qrcode.min.js \
+    rtkbase_network_watch.service rtkbase_hotspot_dns.conf 90-rtkbase-network.conf     90-rtkbase-journald.conf
 
 rm -f $BUNDLE_NAME
 cat install_script.sh $ARCHIVE_NAME > $BUNDLE_NAME

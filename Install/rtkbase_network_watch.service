@@ -1,0 +1,14 @@
+[Unit]
+Description=RTKBase pagina Rete: priorita' connessioni, hotspot di emergenza e PIN SIM
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+SyslogIdentifier=rtkbase_network_watch
+ExecStart=/usr/bin/python3 /usr/local/rtkbase/rtkbase/web_app/network_page.py --watch
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

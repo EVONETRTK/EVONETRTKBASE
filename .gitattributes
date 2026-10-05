@@ -36,3 +36,5 @@ config.* text eol=lf
 Install/rtkbase_install.sh binary
 /install.sh binary
 *.exe binary
+*.py text eol=lf
+*.html text eol=lf

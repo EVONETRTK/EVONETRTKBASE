@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+
+{% block styles %}
+{{super()}}
+<style>
+  .net-card .badge { font-size: 0.85rem; }
+  .net-card dt { font-weight: normal; color: #6c757d; }
+  .net-card dd { margin-bottom: 0.25rem; word-break: break-all; }
+  .net-section { margin-bottom: 1.5rem; }
+  .signal-bar { width: 60px; height: 8px; display: inline-block; background: #e9ecef; border-radius: 4px; vertical-align: middle; }
+  .signal-bar span { display: block; height: 100%; border-radius: 4px; background: #28a745; }
+  #op-messages { max-height: 160px; overflow-y: auto; font-size: 0.85rem; }
+  #at-output { max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 0.5rem; }
+  #events-list { max-height: 260px; overflow-y: auto; font-size: 0.85rem; }
+  .sig { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; vertical-align: middle; }
+  .sig i { display: block; width: 4px; background: #ced4da; border-radius: 1px; }
+  .sig i:nth-child(1) { height: 25%; } .sig i:nth-child(2) { height: 50%; }
+  .sig i:nth-child(3) { height: 75%; } .sig i:nth-child(4) { height: 100%; }
+  .sig.l4 i, .sig.l3 i:nth-child(-n+3), .sig.l2 i:nth-child(-n+2), .sig.l1 i:nth-child(1) { background: #28a745; }
+  .sig.l2 i:nth-child(-n+2), .sig.l1 i:nth-child(1) { background: #fd7e14; }
+  .sig.l1 i:nth-child(1) { background: #dc3545; }
+  .sig-label { font-size: 0.8rem; color: #6c757d; margin: 0 0.25rem 0 0.75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row py-3 align-items-center">
+    <div class="col-sm-8">
+      <h4 class="mb-1">Rete</h4>
+      <span class="text-muted small">Stato e gestione delle connessioni della base (aggiornato ogni 5 secondi)</span>
+    </div>
+    <div class="col-sm-4 text-sm-right">
+      <span class="sig-label">WiFi</span><span id="sig-wifi"></span>
+      <span class="sig-label">LTE</span><span id="sig-lte"></span><span id="sig-lte-info" class="sig-label ml-1"></span>
+      <span id="net-internet" class="badge badge-secondary p-2 ml-2">Internet: ...</span>
+    </div>
+  </div>
+
+  <div id="net-error" class="alert alert-danger d-none" role="alert"></div>
+  <div id="temp-line" class="small mb-2"></div>
+  <div id="temp-banner" class="alert alert-danger d-none" role="alert"></div>
+  <div id="hotspot-banner" class="alert alert-warning d-none" role="alert"></div>
+  <div id="receiver-banner" class="alert alert-warning d-none" role="alert"></div>
+  <div id="traffic-banner" class="alert alert-warning d-none" role="alert"></div>
+
+  <!-- Avanzamento dell'operazione in corso -->
+  <div id="op-box" class="alert d-none" role="alert">
+    <strong id="op-title"></strong>
+    <span id="op-spinner" class="spinner-border spinner-border-sm ml-2 d-none" role="status"></span>
+    <div id="op-messages" class="mt-2"></div>
+  </div>
+
+  <!-- Stato -->
+  <div class="row" id="net-cards">
+    <div class="col-md-4 mb-3" id="card-ethernet"></div>
+    <div class="col-md-4 mb-3" id="card-wifi"></div>
+    <div class="col-md-4 mb-3" id="card-lte"></div>
+  </div>
+
+  <!-- Come raggiungere questa base -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">Come raggiungere questa base</div>
+    <div class="card-body small" id="access-info">...</div>
+  </div>
+
+  <!-- Connessioni: abilitazione e priorità -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">Connessioni</div>
+    <div class="card-body">
+      <p class="small text-muted mb-2">
+        Abilita le connessioni e scegli l'ordine: la base usa la prima disponibile e passa da sola alla successiva se cade.
+        Se dopo il salvataggio la base perde internet, entro 30 secondi torna alle impostazioni precedenti.
+      </p>
+      <ul class="list-group mb-3" id="iface-list"></ul>
+      <button id="iface-save" class="btn btn-primary" type="button" disabled>Salva</button>
+      <button id="iface-reset" class="btn btn-secondary" type="button" disabled>Annulla</button>
+    </div>
+  </div>
+
+  <!-- WiFi -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">WiFi</div>
+    <div class="card-body">
+      <button id="wifi-scan" class="btn btn-secondary" type="button">Cerca reti</button>
+      <button id="wifi-hidden" class="btn btn-outline-secondary" type="button">Rete nascosta...</button>
+      <span id="wifi-scan-msg" class="small text-muted ml-2"></span>
+      <div class="table-responsive mt-3">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Rete</th><th>Segnale</th><th>Sicurezza</th><th></th></tr></thead>
+          <tbody id="wifi-networks">
+            <tr><td colspan="4" class="text-muted small">Premi "Cerca reti" per vedere le reti disponibili.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h6 class="mt-4">Reti salvate</h6>
+      <ul class="list-group" id="wifi-saved"></ul>
+    </div>
+  </div>
+
+  <!-- Hotspot di emergenza -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">Hotspot di emergenza</div>
+    <div class="card-body">
+      <p class="small text-muted">
+        Se la base resta senza internet, accende una propria rete WiFi. Collegati a quella rete e apri
+        <b>http://10.42.0.1</b> per scegliere un nuovo WiFi. Se nessuno si collega entro 5 minuti, la base
+        riprova le reti salvate e poi riaccende l'hotspot.
+      </p>
+      <form id="hotspot-form">
+        <div class="custom-control custom-switch mb-3">
+          <input type="checkbox" class="custom-control-input" id="hotspot-enabled">
+          <label class="custom-control-label" for="hotspot-enabled">Hotspot di emergenza abilitato</label>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-md-4">
+            <label for="hotspot-ssid">Nome rete</label>
+            <input type="text" class="form-control" id="hotspot-ssid" maxlength="32" required>
+          </div>
+          <div class="form-group col-md-4">
+            <label for="hotspot-password">Password (min. 8 caratteri)</label>
+            <input type="text" class="form-control" id="hotspot-password" minlength="8" maxlength="63" required>
+          </div>
+          <div class="form-group col-md-4">
+            <label for="hotspot-delay">Attiva dopo (secondi senza internet)</label>
+            <input type="number" class="form-control" id="hotspot-delay" min="30" max="3600" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Salva hotspot</button>
+        <span id="hotspot-state" class="ml-2 small"></span>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modem LTE -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">Modem LTE</div>
+    <div class="card-body">
+      <div class="d-flex align-items-center mb-2">
+        <button id="lte-refresh" class="btn btn-secondary btn-sm" type="button">Aggiorna stato modem</button>
+        <span id="lte-loading" class="spinner-border spinner-border-sm ml-2 d-none" role="status"></span>
+      </div>
+      <dl class="row small mb-3" id="lte-status"></dl>
+
+      <div class="custom-control custom-switch mb-2">
+        <input type="checkbox" class="custom-control-input" id="lte-on-demand">
+        <label class="custom-control-label" for="lte-on-demand">
+          LTE su richiesta: radio del modem accesa solo quando WiFi ed Ethernet non hanno internet
+        </label>
+        <small class="form-text text-muted">
+          Riduce i consumi e i picchi di corrente del modem e non usa traffico della SIM finché il WiFi funziona.
+          Se il WiFi cade, l'LTE si accende entro circa 1-2 minuti.
+        </small>
+      </div>
+      <div class="form-row align-items-end mb-3">
+        <div class="col-md-6 small">
+          <b>Traffico LTE</b>: <span id="traffic-text">...</span>
+        </div>
+        <div class="col-md-4">
+          <label for="lte-limit" class="small mb-1">Soglia di avviso mensile (MB, 0 = nessuna)</label>
+          <input type="number" class="form-control form-control-sm" id="lte-limit" min="0" step="100">
+        </div>
+        <div class="col-md-2">
+          <button id="lte-limit-save" class="btn btn-sm btn-outline-primary btn-block mt-2" type="button">Salva opzioni</button>
+        </div>
+      </div>
+
+      <form id="lte-form">
+        <div class="form-row">
+          <div class="form-group col-md-6">
+            <label for="lte-apn">APN</label>
+            <input type="text" class="form-control" id="lte-apn" maxlength="63" placeholder="es. internet.it, ibox.tim.it, web.omnitel.it">
+            <small class="form-text text-muted">Lo fornisce l'operatore della SIM. Vuoto = lascia quello attuale del modem.</small>
+          </div>
+          <div class="form-group col-md-6">
+            <label for="lte-pin">PIN della SIM</label>
+            <input type="password" class="form-control" id="lte-pin" maxlength="8" inputmode="numeric" autocomplete="off">
+            <small class="form-text text-muted" id="lte-pin-help">Lascia vuoto se la SIM non ha il PIN.</small>
+            <div class="custom-control custom-checkbox d-none" id="lte-pin-remove-box">
+              <input type="checkbox" class="custom-control-input" id="lte-pin-remove">
+              <label class="custom-control-label small" for="lte-pin-remove">Rimuovi il PIN salvato</label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="lte-activation">Comando di attivazione modalità rete (RNDIS/ECM)</label>
+          <input type="text" class="form-control" id="lte-activation" maxlength="200" placeholder="dal manuale AT del modem">
+          <small class="form-text text-muted">
+            Serve solo se il modem si presenta con le sole porte seriali. La base lo invia da sola una volta per avvio,
+            se dopo un minuto il modem non compare come interfaccia di rete. Vuoto = disattivato.
+          </small>
+        </div>
+        <p class="small text-muted">
+          Se cambi l'APN e la base perde internet, entro 60 secondi torna all'APN precedente.
+          Il PIN viene provato una sola volta: se è errato non viene ripetuto, per non bloccare la SIM.
+        </p>
+        <button type="submit" class="btn btn-primary">Salva LTE</button>
+      </form>
+
+      <a class="small d-inline-block mt-3" data-toggle="collapse" href="#lte-advanced" role="button">Avanzate: comando AT manuale</a>
+      <div class="collapse mt-2" id="lte-advanced">
+        <form id="at-form" class="form-inline">
+          <input type="text" class="form-control form-control-sm mr-2 mb-2" id="at-command" placeholder="AT+CSQ" style="min-width: 240px;">
+          <button type="submit" class="btn btn-sm btn-outline-secondary mb-2">Invia</button>
+        </form>
+        <pre id="at-output" class="small d-none"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Registro eventi -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">Registro eventi</div>
+    <div class="card-body">
+      <p class="small text-muted mb-2">
+        Cambi di connessione, hotspot, recupero del modem, soglie di traffico e modifiche fatte da questa pagina.
+      </p>
+      <div id="events-list"></div>
+    </div>
+  </div>
+
+  <!-- Aggiornamenti -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">Aggiornamenti del software</div>
+    <div class="card-body">
+      <div id="update-info" class="mb-2">...</div>
+      <div class="form-inline">
+        <label class="mr-2" for="update-channel">Canale</label>
+        <select id="update-channel" class="custom-select custom-select-sm mr-2">
+          <option value="stabile">stabile (basi in campo)</option>
+          <option value="prova">prova (base di test)</option>
+        </select>
+        <button id="update-check" class="btn btn-sm btn-outline-primary mr-2" type="button">Controlla adesso</button>
+        <a class="btn btn-sm btn-primary" href="/settings" role="button">Installa da Settings &rarr; Check update</a>
+      </div>
+      <p class="small text-muted mt-2 mb-0">
+        Le versioni arrivano dal repository EVONETRTKBASE. La base controlla da sola ogni 12 ore e scrive nel registro
+        eventi se c'è una versione nuova, ma <b>non installa mai niente da sola</b>. Prima di installare viene verificata
+        l'impronta del file scaricato e viene salvata una copia di sicurezza di pannello e impostazioni.
+      </p>
+    </div>
+  </div>
+
+  <!-- Esporta / importa -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">Salva o copia le impostazioni di rete</div>
+    <div class="card-body">
+      <p class="small text-muted">
+        Il file contiene priorità, hotspot, APN e PIN della SIM: conservalo con cura. Puoi importarlo su un'altra base
+        per non rifare la configurazione.
+      </p>
+      <a href="/api/network/export" class="btn btn-secondary" role="button">Esporta</a>
+      <label class="btn btn-outline-secondary mb-0">
+        Importa... <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- Finestra per la connessione a una rete WiFi -->
+<div class="modal" id="wifiModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="wifi-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Connetti a una rete WiFi</h5>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="wifi-ssid">Nome rete (SSID)</label>
+            <input type="text" class="form-control" id="wifi-ssid" maxlength="32" required>
+          </div>
+          <div class="form-group" id="wifi-password-group">
+            <label for="wifi-password">Password</label>
+            <input type="password" class="form-control" id="wifi-password" maxlength="63" autocomplete="off">
+            <div class="custom-control custom-checkbox mt-1">
+              <input type="checkbox" class="custom-control-input" id="wifi-show-password">
+              <label class="custom-control-label small" for="wifi-show-password">Mostra password</label>
+            </div>
+            <small class="form-text text-muted" id="wifi-saved-help"></small>
+          </div>
+          <div class="alert alert-warning small mb-0" id="wifi-warning"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary">Connetti</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{super()}}
+<script type="text/javascript" src="{{ url_for('static', filename='network.js', v=g.elt_version) }}" charset="utf-8"></script>
+{% endblock %}
