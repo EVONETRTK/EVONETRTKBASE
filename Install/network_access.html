@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Scheda di accesso</title>
+<title>Scheda di accesso base Raspberry Pi</title>
 <style>
   :root { --fg:#111; --muted:#555; --line:#bbb; --accent:#0b5cad; --warn:#b42318; --bg:#fff; --soft:#f3f5f8; }
   * { box-sizing:border-box; }
@@ -77,7 +77,7 @@
 
   <div class="head">
     <div>
-      <h1>Scheda di accesso &mdash; BASE <span id="h-name">-</span></h1>
+      <h1>Scheda di accesso &mdash; BASE RASPBERRY PI <span id="h-name">-</span></h1>
       <div class="sub">Generata dalla base il <span id="h-date">-</span></div>
     </div>
     <table class="ident" id="t-ident"></table>
@@ -166,7 +166,7 @@
     const host = a.hostname || '-';
     const port = a.port && a.port !== '80' ? ':' + a.port : '';
     const url = ip => 'http://' + ip + port;
-    document.title = 'Scheda di accesso base ' + host;
+    document.title = "Scheda di accesso base Raspberry Pi " + host;
     $('h-name').textContent = host;
     $('h-date').textContent = new Date().toLocaleString('it-IT');
     $('conf-sub').textContent = sec

@@ -1,6 +1,6 @@
 {
-  "version": "19809",
-  "new_release": "EVONETRTKBASE 1.9.8-09",
-  "comment": "Scheda di accesso: DOCUMENTO STRETTAMENTE RISERVATO come prima riga della pagina, sopra anche la barra delle password",
-  "sha256": "b1258dcc4abb6c1b35ad57f2674bac328ec134c983e0901238197e555cba8262"
+  "version": "19810",
+  "new_release": "EVONETRTKBASE 1.9.8-10",
+  "comment": "Scheda di accesso: titolo BASE RASPBERRY PI (anche nel nome del PDF), per distinguerla dalla scheda della base ESP32",
+  "sha256": "964b79ead4199e4892e9e04ffd0c9668160a0762a9533cfd286f791aa3c02d53"
 }
