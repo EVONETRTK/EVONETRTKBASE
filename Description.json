@@ -1,6 +1,6 @@
 {
-  "version": "19806",
-  "new_release": "EVONETRTKBASE 1.9.8-06",
-  "comment": "IMEI del modem LTE nel riquadro SIM e modem della pagina Rete e nella scheda di accesso stampabile\r\nAvviso nel registro eventi se il modem viene sostituito (IMEI diverso)\r\nProvata sulla base di prova (07/10): IMEI 868909078545780 letto",
-  "sha256": "c0fab40e7cfc0ebcfacd86d338d0e04409f94fdebc4dd36ac51fe9384710e445"
+  "version": "19807",
+  "new_release": "EVONETRTKBASE 1.9.8-07",
+  "comment": "Scheda di accesso: scritta STRETTAMENTE RISERVATO sempre visibile e in evidenza (riquadro rosso), anche senza mostrare le password e in stampa",
+  "sha256": "53d9ccdc184b24925dd8c0117be2ad8a9f7a3bbf0a36b97099b8c86de069cd62"
 }

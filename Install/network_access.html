@@ -32,7 +32,10 @@
   .note { background:var(--soft); border-left:4px solid var(--accent); padding:8px 10px; margin:8px 0; font-size:13px; }
   .warn { border-left-color:var(--warn); }
   .bad { color:var(--warn); font-weight:700; }
-  .conf { color:var(--warn); font-weight:700; font-size:12px; letter-spacing:.5px; margin-top:6px; }
+  .conf { color:var(--warn); font-weight:800; font-size:15px; letter-spacing:.5px; margin-top:8px; padding:6px 10px;
+          border:3px solid var(--warn); border-radius:6px; background:#fdecea; display:inline-block;
+          -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .conf small { display:block; font-weight:600; font-size:11px; letter-spacing:0; }
   pre.notes { white-space:pre-wrap; font-family:ui-monospace,Consolas,monospace; font-size:13px; margin:0; }
   .bar { background:var(--soft); border:1px solid var(--line); border-radius:8px; padding:12px; margin:0 0 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .bar input { padding:7px 9px; font-size:15px; border:1px solid var(--line); border-radius:6px; min-width:0; flex:1 1 160px; }
@@ -73,7 +76,7 @@
     <div>
       <h1>Scheda di accesso &mdash; BASE <span id="h-name">-</span></h1>
       <div class="sub">Generata dalla base il <span id="h-date">-</span></div>
-      <div class="conf" id="conf">DOCUMENTO RISERVATO &mdash; CONTIENE PASSWORD: CUSTODIRE</div>
+      <div class="conf" id="conf">⚠️ STRETTAMENTE RISERVATO<small id="conf-sub">Contiene indirizzi e dati di accesso alla base: custodire, non divulgare, distruggere le copie vecchie.</small></div>
     </div>
     <table class="ident" id="t-ident"></table>
   </div>
@@ -164,7 +167,9 @@
     document.title = 'Scheda di accesso base ' + host;
     $('h-name').textContent = host;
     $('h-date').textContent = new Date().toLocaleString('it-IT');
-    $('conf').style.visibility = sec ? 'visible' : 'hidden';
+    $('conf-sub').textContent = sec
+      ? 'Contiene PASSWORD e dati di accesso alla base: custodire, non divulgare, distruggere le copie vecchie.'
+      : 'Contiene indirizzi e dati di accesso alla base: custodire, non divulgare, distruggere le copie vecchie.';
     const mdns = 'http://' + host + '.local' + port;
     $('i-mdns').textContent = mdns;
     $('i-host').textContent = host;
