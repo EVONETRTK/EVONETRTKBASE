@@ -184,6 +184,7 @@ $(document).ready(function () {
 
         renderTraffic(data.traffic);
         renderTemps(data.temps);
+        renderSim(data.sim);
         renderAccess(data.access);
         if (data.lte_radio && !$("#lte-on-demand").data("touched")) {
             $("#lte-on-demand").prop("checked", data.lte_radio.on_demand !== false);
@@ -688,7 +689,26 @@ $(document).ready(function () {
         $("#sim-iccid-copy").toggleClass("d-none", !sim.iccid).data("iccid", sim.iccid || "");
         $("#sim-iccid-time").text(sim.iccid_read_at ? "letto dal modem il " +
             new Date(sim.iccid_read_at * 1000).toLocaleString("it-IT") : "si legge con il modem acceso");
+        let ch = sim.changed;
+        if (ch) {
+            $("#sim-banner").removeClass("d-none").html(
+                '<b>⚠️ SIM cambiata</b> il ' + new Date(ch.time * 1000).toLocaleString("it-IT") +
+                ': ICCID nuovo <span class="text-monospace">' + escapeHtml(ch.new_iccid) + '</span>, prima ' +
+                '<span class="text-monospace">' + escapeHtml(ch.old_iccid) + '</span>.' +
+                (ch.old_phone ? ' Il numero di telefono salvato (<b>' + escapeHtml(ch.old_phone) +
+                    '</b>) era della SIM precedente ed è stato tolto: inserisci quello nuovo nel riquadro SIM.' : '') +
+                ' Controlla anche APN e PIN del modem LTE e ristampa la scheda di accesso.' +
+                ' <button type="button" class="btn btn-sm btn-light ml-2" id="sim-ack">Ho capito</button>');
+            $("#sim-box").removeClass("border-primary").addClass("border-danger");
+        } else {
+            $("#sim-banner").addClass("d-none").empty();
+            $("#sim-box").removeClass("border-danger").addClass("border-primary");
+        }
     }
+
+    $("#sim-banner").on("click", "#sim-ack", function () {
+        postJson("/api/network/sim", {acknowledge: true}).done(renderSim).fail(requestFailed);
+    });
 
     function loadSim() {
         $.getJSON("/api/network/sim", renderSim);

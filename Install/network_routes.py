@@ -191,10 +191,13 @@ def sim():
         senza toccare la connessione LTE (vuoto = da inserire in seguito) """
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
-        try:
-            net.set_sim_phone(data.get("phone"))
-        except ValueError as e:
-            return error(str(e))
+        if data.get("acknowledge"):              # "Ho capito" sull'avviso di SIM cambiata
+            net.acknowledge_sim_change()
+        if "phone" in data:
+            try:
+                net.set_sim_phone(data.get("phone"))
+            except ValueError as e:
+                return error(str(e))
     return jsonify(net.sim_info())
 
 

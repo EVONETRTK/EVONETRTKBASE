@@ -469,6 +469,7 @@ def get_status():
         "traffic": traffic_summary(settings),
         "lte_radio": read_json(LTE_STATE_FILE, {}),
         "temps": read_json(TEMPS_FILE, {}),
+        "sim": sim_info(settings),
         "access": access_info(settings, interfaces),
         "enabled": settings["enabled"],
         "order": settings["order"],
@@ -1397,18 +1398,35 @@ def parse_iccid(lines):
 
 
 def remember_iccid(iccid, now=None):
-    """ Memorizza l'ICCID letto; se e' diverso da quello salvato, la SIM e' stata cambiata """
+    """ Memorizza l'ICCID letto. Se e' diverso da quello salvato la SIM e' stata cambiata: evento nel
+        registro e avviso nella pagina finche' non viene confermato; il numero di telefono salvato era
+        della SIM vecchia, quindi viene tolto (e ricordato nell'avviso) per inserire quello nuovo """
     if not iccid:
         return
+    now = int(now or time.time())
     data = read_json(SIM_FILE, {})
     if data.get("iccid") and data["iccid"] != iccid:
-        log("SIM cambiata: ICCID %s (prima %s)" % (iccid, data["iccid"]))
+        settings = load_settings()
+        old_phone = settings["lte"]["phone"]
+        log("SIM CAMBIATA: ICCID %s (prima %s%s). Controllare numero di telefono, APN e PIN nella pagina Rete"
+            % (iccid, data["iccid"], ", numero " + old_phone if old_phone else ""))
+        data["changed"] = {"time": now, "old_iccid": data["iccid"], "new_iccid": iccid, "old_phone": old_phone}
+        if old_phone:
+            settings["lte"]["phone"] = ""
+            save_settings(settings)
     elif not data.get("iccid"):
         log("SIM letta: ICCID %s" % iccid)
+    data.update(iccid=iccid, time=now)
     try:
-        write_json(SIM_FILE, {"iccid": iccid, "time": int(now or time.time())})
+        write_json(SIM_FILE, data)
     except OSError:
         pass
+
+
+def acknowledge_sim_change():
+    data = read_json(SIM_FILE, {})
+    if data.pop("changed", None):
+        write_json(SIM_FILE, data)
 
 
 def read_iccid(settings):
@@ -1421,8 +1439,9 @@ def read_iccid(settings):
 
 
 def check_sim(settings, now):
-    """ Nel servizio watch: rilegge l'ICCID ogni SIM_CHECK_PERIOD con il modem acceso """
-    if not LTE_RADIO.get("on") or now - SIM_LAST["time"] < SIM_CHECK_PERIOD:
+    """ Nel servizio watch: rilegge l'ICCID all'avvio (la SIM si cambia a base spenta) e poi ogni
+        SIM_CHECK_PERIOD, anche con l'LTE su richiesta spento (l'ICCID si legge con la radio spenta) """
+    if not settings["enabled"]["lte"] or now - SIM_LAST["time"] < SIM_CHECK_PERIOD:
         return
     SIM_LAST["time"] = now
     try:
@@ -1434,7 +1453,8 @@ def check_sim(settings, now):
 def sim_info(settings=None):
     settings = settings or load_settings()
     data = read_json(SIM_FILE, {})
-    return {"iccid": data.get("iccid"), "iccid_read_at": data.get("time"), "phone": settings["lte"]["phone"]}
+    return {"iccid": data.get("iccid"), "iccid_read_at": data.get("time"), "phone": settings["lte"]["phone"],
+            "changed": data.get("changed")}
 
 
 def set_sim_phone(phone):
