@@ -42,8 +42,12 @@ problem(){
 prepara(){
    cd "${OUR_ROOT}" || fail "cartella ${OUR_ROOT} non trovata"
    git rev-parse HEAD >/dev/null 2>&1 || fail "${OUR_ROOT} non e' un clone git di ELT_RTKBase"
-   git diff HEAD -- ${INSTALLER_FILES} > "${INSTALLER_PATCH}" || fail "git diff non riuscito"
-   git rev-parse HEAD > "${BASE_COMMIT}"
+   # base = ELT originale (primo commit del ramo, con l'albero di ELT), NON l'ultimo commit: da quando le nostre
+   # modifiche sono committate (EVONETRTKBASE 1.9.8-01) "git diff HEAD" dava solo quelle non ancora committate
+   local base
+   base=$(git rev-list --max-parents=0 HEAD | tail -1)
+   git diff "${base}" -- ${INSTALLER_FILES} > "${INSTALLER_PATCH}" || fail "git diff non riuscito"
+   echo "${base}" > "${BASE_COMMIT}"
    echo "Salvate in rete/installer.patch le modifiche a: ${INSTALLER_FILES}"
    echo "Versione ELT di partenza: $(cat "${BASE_COMMIT}")"
 }

@@ -1881,8 +1881,13 @@ def receiver_satellites():
     return {"tracked": int(fields[13]), "used": int(fields[14]), "solution": fields[1]}
 
 
-RECEIVER_OUTPUT = {"silent_since": None}
+RECEIVER_OUTPUT = {"silent_since": None, "reset_at": None, "restart_at": None}
 RECEIVER_LISTEN = 3                # nessun byte dal ricevitore in 3 s = muto (normalmente ~800 byte/s)
+RECEIVER_RESET_AFTER = 180         # muto da 3 minuti -> reset del ricevitore (comando RESET di Unicore): il 06/10
+                                   # ha sbloccato l'UM982 6 volte su 6, dati ripresi ~2 minuti dopo
+RECEIVER_RESET_MIN_INTERVAL = 1200 # al massimo un reset ogni 20 minuti
+RECEIVER_RESTART_DELAY = 30        # dopo il reset: riavvio del servizio, che rimanda la configurazione da base
+RECEIVER_RESET_FILE = "/usr/local/rtkbase/network_receiver_reset.json"
 
 
 def describe_satellites(sats):
@@ -1895,6 +1900,13 @@ def check_receiver_output(now, temps, read_satellites):
     """ Ricevitore acceso ma senza dati (03-05/10: muto per minuti, poi riparte da solo, mentre ai
         comandi risponde): registra quando succede e quanti satelliti vede, per capire se e' l'antenna """
     st = RECEIVER_OUTPUT
+    if st["restart_at"] is not None and now >= st["restart_at"]:
+        # dopo il RESET il ricevitore riparte con la configurazione salvata: il riavvio del servizio gli
+        # rimanda quella da base (UnicoreSetBasePos.sh) e fa ripartire anche le trasmissioni NTRIP
+        st["restart_at"] = None
+        run(["systemctl", "restart", "str2str_tcp.service"], timeout=60)
+        log("ricevitore GNSS: servizio str2str_tcp riavviato dopo il reset")
+        return
     heard, _ = receiver_session(listen=RECEIVER_LISTEN)
     if heard is None:                  # servizio in riavvio o ricevitore non Unicore: si riprova dopo
         return
@@ -1904,12 +1916,27 @@ def check_receiver_output(now, temps, read_satellites):
         sats = receiver_satellites()
         temps["satellites"] = sats
         log("ricevitore GNSS senza dati: %s" % describe_satellites(sats))
+    elif silent and now - st["silent_since"] >= RECEIVER_RESET_AFTER and st["reset_at"] is None:
+        last = read_json(RECEIVER_RESET_FILE, {}).get("time")
+        if last is not None and 0 <= now - last < RECEIVER_RESET_MIN_INTERVAL:
+            return
+        sats = receiver_satellites()
+        _, answer = receiver_session(b"RESET", b"$command,RESET")
+        st.update(reset_at=now, restart_at=now + RECEIVER_RESTART_DELAY)
+        try:
+            write_json(RECEIVER_RESET_FILE, {"time": now})
+        except OSError:
+            pass
+        log("ricevitore GNSS senza dati da %d minuti (%s): inviato RESET (%s)"
+            % ((now - st["silent_since"]) // 60, describe_satellites(sats),
+               "confermato" if answer and b"OK" in answer else "nessuna conferma"))
     elif not silent and st["silent_since"] is not None:
         sats = receiver_satellites()
         temps["satellites"] = sats
-        log("ricevitore GNSS di nuovo con dati dopo %d minuti: %s" %
-            ((now - st["silent_since"]) // 60, describe_satellites(sats)))
-        st["silent_since"] = None
+        after_reset = (", %d minuti dopo il reset" % ((now - st["reset_at"]) // 60)) if st["reset_at"] else ""
+        log("ricevitore GNSS di nuovo con dati dopo %d minuti%s: %s" %
+            ((now - st["silent_since"]) // 60, after_reset, describe_satellites(sats)))
+        st.update(silent_since=None, reset_at=None)
     elif read_satellites:
         temps["satellites"] = receiver_satellites()
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # EVONETRTKBASE: versione ELT (3 cifre) + nostra revisione (2 cifre): 19801 = ELT 1.9.8, revisione 01
-NEW_VERSION=19802
+NEW_VERSION=19803
 
 RTKBASE_USER=rtkbase
 RTKBASE_PATH=/usr/local/${RTKBASE_USER}
@@ -58,8 +58,6 @@ BASE_NETWORK_PATCH=base_html_network.patch
 NETWORK_PAGE_PY=network_page.py
 NETWORK_HTML=network.html
 NETWORK_JS=network.js
-NETWORK_ACCESS_HTML=network_access.html
-QRCODE_JS=qrcode.min.js
 NETWORK_ACCESS_HTML=network_access.html
 QRCODE_JS=qrcode.min.js
 NETWORK_ROUTES_PY=network_routes.py
@@ -1187,14 +1185,34 @@ patch_rtkbase(){
    ExitCodeCheck $?
 }
 
+wait_apt(){
+   # EVONETRTKBASE: aspetta che finisca un apt/dpkg gia' in corso (es. aggiornamenti automatici), max 10 minuti
+   for i in $(seq 1 120); do
+      pgrep -x "apt-get|apt|dpkg|unattended-upgr" >/dev/null || return 0
+      [[ $i == 1 ]] && echo "apt o dpkg occupato da un altro processo: attendo"
+      sleep 5
+   done
+}
+
 rtkbase_install(){
-   #echo ${RTKBASE_PATH}/${RTKBASE_INSTALL} -u ${RTKBASE_USER} -j -d
-   ${RTKBASE_PATH}/${RTKBASE_INSTALL} -u ${RTKBASE_USER} -j -d 2>&1
-   ExitCodeCheck $?
-   if [ $lastcode != 0 ]
-   then
+   # EVONETRTKBASE: se "-j -d" fallisce (dipendenze: apt occupato o senza rete) il RTKBase incluso NON viene
+   # scompattato e le patch verrebbero riapplicate ai file gia' modificati, rompendo server.py (07/10).
+   # Si riprova una volta; se fallisce ancora l'aggiornamento si ferma qui e i file restano intatti.
+   for attempt in 1 2; do
+      wait_apt
+      #echo ${RTKBASE_PATH}/${RTKBASE_INSTALL} -u ${RTKBASE_USER} -j -d
+      ${RTKBASE_PATH}/${RTKBASE_INSTALL} -u ${RTKBASE_USER} -j -d 2>&1
+      lastcode=$?
+      [[ $lastcode == 0 ]] && break
       echo BUG: ${RTKBASE_INSTALL} -j -d finished with exitcode = $lastcode
-      #ls -la ${RTKBASE_PATH}/${RTKBASE_INSTALL}
+      [[ $attempt == 1 ]] && echo "Riprovo tra 30 secondi" && sleep 30
+   done
+   if [[ $lastcode != 0 ]]; then
+      echo "ERRORE: installazione di RTKBase non riuscita: aggiornamento ANNULLATO, resta la versione precedente"
+      [[ -n "${OLD_VERSION}" ]] && echo ${OLD_VERSION} >${RTKBASE_PATH}/${VERSION_FILE}
+      have_receiver && start_rtkbase_services
+      delete_all_extracted
+      exit 1
    fi
 
    patch_rtkbase
@@ -1382,8 +1400,6 @@ configure_for_unicore(){
    copy_file "${NETWORK_PAGE_PY}" "${RTKBASE_WEB}"
    copy_file "${NETWORK_HTML}" "${RTKBASE_WEB}/templates"
    copy_file "${NETWORK_JS}" "${RTKBASE_WEB}/static"
-   copy_file "${NETWORK_ACCESS_HTML}" "${RTKBASE_WEB}/templates"
-   copy_file "${QRCODE_JS}" "${RTKBASE_WEB}/static"
    copy_file "${NETWORK_ACCESS_HTML}" "${RTKBASE_WEB}/templates"
    copy_file "${QRCODE_JS}" "${RTKBASE_WEB}/static"
    copy_file "${NETWORK_ROUTES_PY}" "${RTKBASE_WEB}"
@@ -1872,7 +1888,6 @@ BASE_EXTRACT="${NMEACONF} ${CONF980} ${CONF982} ${CONFBYNAV} ${UNICORE_CONFIGURE
               ${RAW2NMEA_SH_PATCH} ${NETWORK_INFOS_PATCH} ${CYPRESS_MODEM}
               ${LOGMANAGER_PATCH} ${SERVER_NETWORK_PATCH} ${BASE_NETWORK_PATCH}
               ${NETWORK_PAGE_PY} ${NETWORK_HTML} ${NETWORK_JS} ${NETWORK_ROUTES_PY}
-              ${NETWORK_ACCESS_HTML} ${QRCODE_JS}
               ${NETWORK_ACCESS_HTML} ${QRCODE_JS}
               ${NETWORK_WATCH_SERVICE} ${HOTSPOT_DNS_CONF} ${NETWORK_SYSCTL}
               ${JOURNALD_CONF}"

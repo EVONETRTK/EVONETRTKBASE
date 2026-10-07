@@ -1,6 +1,6 @@
 {
-  "version": "19802",
-  "new_release": "EVONETRTKBASE 1.9.8-02",
-  "comment": "README di EVONETRTKBASE in italiano (installazione, aggiornamenti, canali)\r\nRilasci su GitHub con install.sh allegato per ogni versione\r\nScript di rilascio: versioni lette dall'API di GitHub (niente 404 in cache)",
-  "sha256": "ee9920b20a669eedd9f5c3928165b24293c2b1e129693f24f127282eb0bc0403"
+  "version": "19803",
+  "new_release": "EVONETRTKBASE 1.9.8-03",
+  "comment": "Aggiornamento sicuro: se l'installazione di RTKBase fallisce (apt occupato o senza rete) l'aggiornamento si annulla senza toccare i file (la 1.9.8-02 poteva rompere il pannello)\r\nCorretto: file della scheda di accesso elencati due volte nell'installer\r\nRicevitore GNSS muto da 3 minuti: reset automatico dell'UM982 (al massimo ogni 20 minuti)\r\nRegistro eventi: satelliti visti quando il ricevitore smette di trasmettere",
+  "sha256": "0379712ae9e5d206bc651896c60eb9601ca72374419eb1dffec773e841ec5b41"
 }

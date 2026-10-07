@@ -23,3 +23,36 @@ assert "di nuovo con dati dopo 10 minuti" in events[-1], events
 line = None; assert n.receiver_satellites() is None
 line = b"#BESTNAVA,1;SOL,X"; assert n.receiver_satellites() is None
 print("SILENZIO RICEVITORE OK")
+
+# reset automatico dopo 10 minuti di silenzio, al massimo uno all'ora
+n.RECEIVER_RESET_FILE = os.path.join(tmp, "rxreset.json")
+sent, runs = [], []
+def session2(command=None, tag=None, listen=0.0):
+    if command:
+        sent.append(command)
+        return 0, (b"$command,RESET,response: OK*7a" if command == b"RESET" else line)
+    return state["heard"], None
+n.receiver_session = session2
+n.run = lambda args, timeout=15: runs.append(args) or ""
+line = b'#BESTNAVA,97,GPS,FINE,2439,1,0,0,18,8;SOL_COMPUTED,FIXEDPOS,40.83,16.54,490.99,0.0,WGS84,0,0,0,"1",0.000,11.000,11,3,3,0,1*00'
+n.RECEIVER_OUTPUT.update(silent_since=None, reset_at=None, restart_at=None)
+events.clear(); state["heard"] = 0
+n.check_receiver_output(1000, temps, False)                       # inizio silenzio
+n.check_receiver_output(1170, temps, False); assert b"RESET" not in sent   # meno di 3 minuti: ancora niente
+n.check_receiver_output(1600, temps, False)                       # oltre 3 minuti: reset
+assert b"RESET" in sent and "inviato RESET (confermato)" in events[-1], events
+n.check_receiver_output(1630, temps, False)                       # 30 s dopo: riavvio del servizio
+assert ["systemctl", "restart", "str2str_tcp.service"] in runs and "riavviato dopo il reset" in events[-1]
+sent.clear()
+n.check_receiver_output(1690, temps, False); assert b"RESET" not in sent   # un solo reset per silenzio
+state["heard"] = 700
+n.check_receiver_output(1750, temps, False)
+assert "di nuovo con dati dopo 12 minuti, 2 minuti dopo il reset" in events[-1], events
+# nuovo silenzio entro un'ora: niente secondo reset
+state["heard"] = 0; sent.clear()
+for t in (2000, 2200, 2500):
+    n.check_receiver_output(t, temps, False)
+assert b"RESET" not in sent
+n.check_receiver_output(3000, temps, False)                       # passati 20 minuti: reset
+assert b"RESET" in sent
+print("RESET RICEVITORE OK")

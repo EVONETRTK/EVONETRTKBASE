@@ -69,6 +69,15 @@ esac
 echo "== 1. test"
 rete/test/esegui_test.sh "${PYTHON:-python3}" || fail "test falliti: niente rilascio"
 
+echo "== 1b. controlli dell'installer"
+bash -n Install/install_script.sh || fail "install_script.sh ha errori di sintassi"
+# file elencati due volte: tar li segnala "Not found in archive" e il secondo mv fallisce (1.9.8-02)
+dup=$(sed -n '/^BASE_EXTRACT="/,/"$/p' Install/install_script.sh | sed 's/BASE_EXTRACT=//; s/["\\]//g' | tr ' ' '\n' \
+      | grep -v '^$' | sort | uniq -d)
+[[ -z "${dup}" ]] || fail "file elencati due volte nell'installer: ${dup}"
+dup=$(grep -E '^[A-Z0-9_]+=' Install/install_script.sh | cut -d= -f1 | sort | uniq -d)
+[[ -z "${dup}" ]] || fail "variabili definite due volte nell'installer: ${dup}"
+
 echo "== 2. patch rigenerate"
 "${PYTHON:-python3}" rete/genera_server_patch.py >/dev/null || fail "genera_server_patch.py"
 rete/aggiorna_da_elt.sh prepara >/dev/null 2>&1 || fail "aggiorna_da_elt.sh prepara"
