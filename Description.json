@@ -1,6 +1,6 @@
 {
-  "version": "19810",
-  "new_release": "EVONETRTKBASE 1.9.8-10",
-  "comment": "Scheda di accesso: titolo BASE RASPBERRY PI (anche nel nome del PDF), per distinguerla dalla scheda della base ESP32",
-  "sha256": "964b79ead4199e4892e9e04ffd0c9668160a0762a9533cfd286f791aa3c02d53"
+  "version": "19811",
+  "new_release": "EVONETRTKBASE 1.9.8-11",
+  "comment": "Pagina Rete: titolo Rete - base Raspberry Pi",
+  "sha256": "fc893ef5f7ecd1bece8cdd1a97d3c159ccdb350dbfff4b4d62281c6a14883654"
 }
