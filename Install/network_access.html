@@ -65,6 +65,8 @@
 </head>
 <body>
 <div class="page">
+  <div class="conf" id="conf">⚠️ DOCUMENTO STRETTAMENTE RISERVATO ⚠️<small id="conf-sub">Contiene indirizzi e dati di accesso alla base: custodire, non divulgare, distruggere le copie vecchie.</small></div>
+
   <div class="bar noprint">
     <input id="pw" type="password" placeholder="Password del pannello (admin)" autocomplete="current-password">
     <button id="show">Mostra le password</button>
@@ -72,8 +74,6 @@
     <a href="{{ url_for('network.page') }}" style="margin-left:auto">&larr; Torna alla pagina Rete</a>
     <div id="msg">Senza la password del pannello la scheda si stampa con le caselle delle password vuote, da compilare a mano.</div>
   </div>
-
-  <div class="conf" id="conf">⚠️ DOCUMENTO STRETTAMENTE RISERVATO ⚠️<small id="conf-sub">Contiene indirizzi e dati di accesso alla base: custodire, non divulgare, distruggere le copie vecchie.</small></div>
 
   <div class="head">
     <div>

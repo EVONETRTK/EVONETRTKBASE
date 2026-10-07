@@ -1,6 +1,6 @@
 {
-  "version": "19808",
-  "new_release": "EVONETRTKBASE 1.9.8-08",
-  "comment": "Scheda di accesso: DOCUMENTO STRETTAMENTE RISERVATO in cima alla pagina, fascia rossa a tutta larghezza",
-  "sha256": "d0248875e8649f1c98ec228bb38df86d72cb0831aa4d917718d5235f0f3421b3"
+  "version": "19809",
+  "new_release": "EVONETRTKBASE 1.9.8-09",
+  "comment": "Scheda di accesso: DOCUMENTO STRETTAMENTE RISERVATO come prima riga della pagina, sopra anche la barra delle password",
+  "sha256": "b1258dcc4abb6c1b35ad57f2674bac328ec134c983e0901238197e555cba8262"
 }
