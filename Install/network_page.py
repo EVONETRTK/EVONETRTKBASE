@@ -125,7 +125,7 @@ DEFAULT_SETTINGS = {
     "order": ["ethernet", "wifi", "lte"],
     "hotspot": {"enabled": True, "ssid": "", "password": "", "delay": 120},
     "lte": {"apn": "", "pin": "", "at_port": "", "activation_command": "", "monthly_limit_mb": 0,
-            "on_demand": True},
+            "on_demand": True, "phone": ""},       # phone: numero della SIM, inserito a mano (non e' sulla SIM)
     # note di accesso (credenziali di prova ecc.) mostrate nella pagina, da cancellare prima del campo
     "access_notes": "",
     # aggiornamenti online dal repository EVONETRTKBASE: canale "stabile" (ramo main) o "prova"
@@ -780,6 +780,7 @@ def access_card():
         "receiver_port": rtkbase_conf("com_port"),
         "modem": "Air780E (LTE)" if usb_vendor_present("19d1") else None,
         "apn": settings["lte"]["apn"],
+        "sim": sim_info(settings),
         "caster": {"host": rtkbase_conf("svr_addr_a"), "port": rtkbase_conf("svr_port_a") or "2101",
                    "mountpoint": rtkbase_conf("mnt_name_a"),
                    "active": run(["systemctl", "is-active", "str2str_ntrip_A"]).strip() == "active"},
@@ -1374,11 +1375,84 @@ def operator_name(value):
     return value or None
 
 
+#### SIM: ICCID (letto dal modem e memorizzato) e numero di telefono (inserito a mano) ####
+
+SIM_FILE = "/usr/local/rtkbase/network_sim.json"
+SIM_CHECK_PERIOD = 3600            # ICCID riletto ogni ora con l'LTE acceso (SIM cambiata?)
+SIM_LAST = {"time": 0}
+PHONE_RE = re.compile(r"\+?[0-9][0-9 ]{5,19}")
+
+
+def parse_iccid(lines):
+    """ ICCID dalla risposta del modem: "+ICCID: 8939...F" (Air780E), "+CCID:", "+QCCID:" o solo cifre """
+    for line in lines:
+        value = line
+        for prefix in ("+ICCID:", "+CCID:", "+QCCID:"):
+            if line.startswith(prefix):
+                value = line[len(prefix):]
+        digits = re.sub(r"[^0-9]", "", value.strip().strip('"').rstrip("Ff"))
+        if 18 <= len(digits) <= 22:
+            return digits
+    return None
+
+
+def remember_iccid(iccid, now=None):
+    """ Memorizza l'ICCID letto; se e' diverso da quello salvato, la SIM e' stata cambiata """
+    if not iccid:
+        return
+    data = read_json(SIM_FILE, {})
+    if data.get("iccid") and data["iccid"] != iccid:
+        log("SIM cambiata: ICCID %s (prima %s)" % (iccid, data["iccid"]))
+    elif not data.get("iccid"):
+        log("SIM letta: ICCID %s" % iccid)
+    try:
+        write_json(SIM_FILE, {"iccid": iccid, "time": int(now or time.time())})
+    except OSError:
+        pass
+
+
+def read_iccid(settings):
+    for command in ("AT+ICCID", "AT+CCID"):
+        ok, lines = modem_at(settings, command)
+        iccid = parse_iccid(lines) if ok else None
+        if iccid:
+            return iccid
+    return None
+
+
+def check_sim(settings, now):
+    """ Nel servizio watch: rilegge l'ICCID ogni SIM_CHECK_PERIOD con il modem acceso """
+    if not LTE_RADIO.get("on") or now - SIM_LAST["time"] < SIM_CHECK_PERIOD:
+        return
+    SIM_LAST["time"] = now
+    try:
+        remember_iccid(read_iccid(settings), now)
+    except (OSError, TimeoutError):
+        pass
+
+
+def sim_info(settings=None):
+    settings = settings or load_settings()
+    data = read_json(SIM_FILE, {})
+    return {"iccid": data.get("iccid"), "iccid_read_at": data.get("time"), "phone": settings["lte"]["phone"]}
+
+
+def set_sim_phone(phone):
+    phone = " ".join(str(phone or "").split())
+    if phone and not PHONE_RE.fullmatch(phone):
+        raise ValueError("numero di telefono non valido (cifre, spazi, + iniziale)")
+    settings = load_settings()
+    settings["lte"]["phone"] = phone
+    save_settings(settings)
+    return phone
+
+
 def lte_status():
     """ Stato del modem letto con comandi AT, piu' le impostazioni LTE salvate """
     status = modem_status()
     status["activation_command"] = load_settings()["lte"]["activation_command"]
     status["serial_only"] = modem_without_network()
+    status["sim_info"] = sim_info()
     return status
 
 
@@ -1406,6 +1480,8 @@ def modem_status():
             cpin = at_value(lines, "+CPIN:")
             if ok and cpin:
                 status["sim"] = cpin
+                iccid = parse_iccid(ask("AT+ICCID")) or parse_iccid(ask("AT+CCID"))
+                remember_iccid(iccid)
             elif status["radio"] is False:
                 status["sim"] = "non leggibile con la radio spenta"
             else:
@@ -2304,6 +2380,7 @@ def watch():
             if slow:
                 check_wifi_chip(now, settings)
                 check_update_periodically(now, settings)
+                check_sim(settings, now)
                 SLOW_LAST["time"] = now
             if now - GUARD_LAST["time"] >= GUARD_PERIOD:
                 guard_services(now)

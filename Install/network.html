@@ -136,6 +136,29 @@
   <div class="card net-section">
     <div class="card-header font-weight-bold">Modem LTE</div>
     <div class="card-body">
+      <!-- SIM: numero di telefono (a mano) e ICCID (letto dal modem), in evidenza -->
+      <div class="border border-primary rounded p-2 mb-3" id="sim-box">
+        <div class="font-weight-bold text-primary mb-1">SIM</div>
+        <div class="row">
+          <div class="col-md-6 mb-2">
+            <div class="small text-muted">Numero di telefono</div>
+            <div class="h5 mb-1 text-monospace" id="sim-phone">...</div>
+            <div class="input-group input-group-sm">
+              <input type="tel" class="form-control" id="sim-phone-input" maxlength="24" placeholder="es. +39 351 1234567">
+              <div class="input-group-append">
+                <button class="btn btn-outline-primary" type="button" id="sim-phone-save">Salva</button>
+              </div>
+            </div>
+            <small class="form-text text-muted">Non è scritto sulla SIM: inseriscilo quando vuoi (vuoto = da inserire).</small>
+          </div>
+          <div class="col-md-6 mb-2">
+            <div class="small text-muted">ICCID (numero stampato sulla SIM)</div>
+            <div class="h5 mb-1 text-monospace" id="sim-iccid">...</div>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="sim-iccid-copy">Copia</button>
+            <small class="form-text text-muted" id="sim-iccid-time"></small>
+          </div>
+        </div>
+      </div>
       <div class="d-flex align-items-center mb-2">
         <button id="lte-refresh" class="btn btn-secondary btn-sm" type="button">Aggiorna stato modem</button>
         <span id="lte-loading" class="spinner-border spinner-border-sm ml-2 d-none" role="status"></span>

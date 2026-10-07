@@ -676,10 +676,57 @@ $(document).ready(function () {
         $("#lte-pin-remove-box").toggleClass("d-none", !data.pin_saved);
     }
 
+    function renderSim(sim) {
+        if (!sim) {
+            return;
+        }
+        $("#sim-phone").html(sim.phone ? escapeHtml(sim.phone) : '<span class="text-muted">da inserire</span>');
+        if (!$("#sim-phone-input").is(":focus")) {
+            $("#sim-phone-input").val(sim.phone || "");
+        }
+        $("#sim-iccid").html(sim.iccid ? escapeHtml(sim.iccid) : '<span class="text-muted">non ancora letto</span>');
+        $("#sim-iccid-copy").toggleClass("d-none", !sim.iccid).data("iccid", sim.iccid || "");
+        $("#sim-iccid-time").text(sim.iccid_read_at ? "letto dal modem il " +
+            new Date(sim.iccid_read_at * 1000).toLocaleString("it-IT") : "si legge con il modem acceso");
+    }
+
+    function loadSim() {
+        $.getJSON("/api/network/sim", renderSim);
+    }
+
+    $("#sim-phone-save").on("click", function () {
+        postJson("/api/network/sim", {phone: $("#sim-phone-input").val().trim()})
+            .done(function (sim) {
+                renderSim(sim);
+                showError(null);
+            })
+            .fail(requestFailed);
+    });
+
+    $("#sim-iccid-copy").on("click", function () {
+        let iccid = $(this).data("iccid");
+        if (!iccid) {
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(iccid);
+        } else {                                   // pannello in http: niente API clipboard
+            let area = $("<textarea>").val(iccid).css({position: "fixed", opacity: 0}).appendTo("body");
+            area[0].select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        $(this).text("Copiato");
+        setTimeout(function () { $("#sim-iccid-copy").text("Copia"); }, 1500);
+    });
+
     function loadLte() {
         $("#lte-loading").removeClass("d-none");
         $.getJSON("/api/network/lte")
-            .done(renderLte)
+            .done(function (data) {
+                renderLte(data);
+                renderSim(data.sim_info);
+            })
             .always(function () {
                 $("#lte-loading").addClass("d-none");
             });
@@ -812,6 +859,7 @@ $(document).ready(function () {
     refreshStatus();
     loadSaved();
     loadHotspot();
+    loadSim();
     loadLte();
     loadEvents();
     loadUpdate();

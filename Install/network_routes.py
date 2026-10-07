@@ -184,6 +184,20 @@ def lte():
     return started(net.start_operation("LTE", net.change_lte, apn, pin, activation))
 
 
+@blueprint.route("/api/network/sim", methods=["GET", "POST"])
+@login_required
+def sim():
+    """ ICCID (letto dal modem) e numero di telefono della SIM; POST {phone} salva il numero
+        senza toccare la connessione LTE (vuoto = da inserire in seguito) """
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        try:
+            net.set_sim_phone(data.get("phone"))
+        except ValueError as e:
+            return error(str(e))
+    return jsonify(net.sim_info())
+
+
 @blueprint.route("/api/network/lte/limit", methods=["POST"])
 @login_required
 def lte_limit():

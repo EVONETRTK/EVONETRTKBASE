@@ -1,6 +1,6 @@
 {
-  "version": "19803",
-  "new_release": "EVONETRTKBASE 1.9.8-03",
-  "comment": "Aggiornamento sicuro: se l'installazione di RTKBase fallisce (apt occupato o senza rete) l'aggiornamento si annulla senza toccare i file (la 1.9.8-02 poteva rompere il pannello)\r\nCorretto: file della scheda di accesso elencati due volte nell'installer\r\nRicevitore GNSS muto da 3 minuti: reset automatico dell'UM982 (al massimo ogni 20 minuti)\r\nRegistro eventi: satelliti visti quando il ricevitore smette di trasmettere",
-  "sha256": "0379712ae9e5d206bc651896c60eb9601ca72374419eb1dffec773e841ec5b41"
+  "version": "19804",
+  "new_release": "EVONETRTKBASE 1.9.8-04",
+  "comment": "SIM in evidenza nella pagina Rete: numero di telefono (si inserisce quando si vuole) e ICCID letto dal modem, con pulsante Copia\r\nAvviso nel registro eventi se la SIM viene cambiata\r\nNumero e ICCID della SIM anche nella scheda di accesso stampabile\r\nProvata sulla base di prova con l'aggiornamento completo (13:14-13:20 del 07/10, nessun errore)",
+  "sha256": "20f03dab848aa17911ca5426657a79b450f5e88172958084e789fbf0df88670b"
 }
