@@ -1,6 +1,6 @@
 #!/bin/bash
 # EVONETRTKBASE: versione ELT (3 cifre) + nostra revisione (2 cifre): 19801 = ELT 1.9.8, revisione 01
-NEW_VERSION=19805
+NEW_VERSION=19806
 
 RTKBASE_USER=rtkbase
 RTKBASE_PATH=/usr/local/${RTKBASE_USER}

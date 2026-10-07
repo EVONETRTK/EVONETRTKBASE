@@ -687,6 +687,7 @@ $(document).ready(function () {
         }
         $("#sim-iccid").html(sim.iccid ? escapeHtml(sim.iccid) : '<span class="text-muted">non ancora letto</span>');
         $("#sim-iccid-copy").toggleClass("d-none", !sim.iccid).data("iccid", sim.iccid || "");
+        $("#sim-imei").html(sim.imei ? escapeHtml(sim.imei) : '<span class="text-muted">non ancora letto</span>');
         $("#sim-iccid-time").text(sim.iccid_read_at ? "letto dal modem il " +
             new Date(sim.iccid_read_at * 1000).toLocaleString("it-IT") : "si legge con il modem acceso");
         let ch = sim.changed;

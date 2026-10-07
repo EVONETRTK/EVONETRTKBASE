@@ -178,6 +178,7 @@
       s.modem && ['Modem', esc(s.modem) + (s.apn ? ', APN ' + v(s.apn) : '')],
       ['Numero SIM', s.sim && s.sim.phone ? '<b>' + v(s.sim.phone) + '</b>' : blank],
       ['ICCID SIM', s.sim && s.sim.iccid ? v(s.sim.iccid) : blank],
+      s.sim && s.sim.imei && ['IMEI modem', v(s.sim.imei)],
       ['Posizione della base', s.position ? v(s.position) : 'automatica (rilevata dal ricevitore a ogni avvio)'],
       sats && ['Satelliti adesso', esc(sats)],
     ]);
@@ -273,7 +274,7 @@
       (sec && sec.caster_user ? 'utente ' + v(sec.caster_user) + '<br>' : '') + 'password ' + pw(sec && sec.caster_password)].join('<br>')]);
     cred.push(['Account Tailscale', tsAccount]);
     const sim = s.sim || {};
-    cred.push(['SIM', 'numero ' + (sim.phone ? v(sim.phone) : blank) + '<br>ICCID ' + (sim.iccid ? v(sim.iccid) : blank) +
+    cred.push(['SIM', 'numero ' + (sim.phone ? v(sim.phone) : blank) + '<br>ICCID ' + (sim.iccid ? v(sim.iccid) : blank) + (sim.imei ? '<br>IMEI modem ' + v(sim.imei) : '') +
       '<br>APN ' + v(s.apn || '-') + ' / PIN ' + (sec ? (sec.sim_pin ? v(sec.sim_pin) : '<i>(nessun PIN)</i>') : blank)]);
     if (sec && sec.notes) cred.push(['Note di accesso (pagina Rete)', '<pre class="notes">' + esc(sec.notes) + '</pre>']);
     rows('t-cred', cred);

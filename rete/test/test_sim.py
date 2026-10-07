@@ -38,6 +38,16 @@ st["enabled"]["lte"] = True; n.save_settings(st)
 n.LTE_RADIO["on"] = False; n.check_sim(n.load_settings(), 5000); assert len(calls) == 1   # anche con la radio spenta
 n.check_sim(n.load_settings(), 5000 + 600); assert len(calls) == 1
 n.check_sim(n.load_settings(), 5000 + 3600); assert len(calls) == 2
+# IMEI del modem
+assert n.parse_imei(["868909078545780"]) == "868909078545780"            # Air780E, AT+CGSN
+assert n.parse_imei(['+CGSN: "868909078545780"']) == "868909078545780"
+assert n.parse_imei(["ERROR"]) is None and n.parse_imei(["12345"]) is None
+events.clear()
+n.remember_imei("868909078545780", 10); assert "modem letto: IMEI 868909078545780" in events[-1]
+n.remember_imei("868909078545780", 20); assert len(events) == 1
+n.remember_imei("861234567890123", 30); assert "MODEM CAMBIATO" in events[-1] and "prima 868909078545780" in events[-1]
+assert n.sim_info()["imei"] == "861234567890123" and n.sim_info()["iccid"]   # ICCID conservato
+n.remember_iccid(n.sim_info()["iccid"], 40); assert n.sim_info()["imei"] == "861234567890123"  # e viceversa
 print("SIM DATI OK")
 
 from flask import Flask

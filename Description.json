@@ -1,6 +1,6 @@
 {
-  "version": "19805",
-  "new_release": "EVONETRTKBASE 1.9.8-05",
-  "comment": "SIM cambiata: rilevata all'avvio della base e ogni ora (anche con LTE su richiesta spento)\r\nAvviso rosso nella pagina Rete finche' non si preme Ho capito, ed evento nel registro con ICCID nuovo e vecchio\r\nIl numero di telefono della SIM vecchia viene tolto e mostrato nell'avviso, per inserire quello nuovo\r\nProvata sulla base di prova con un cambio SIM simulato (07/10)",
-  "sha256": "d2c1df74430bf28bb932e5156f1a81aabca9eb485f0658a9552fc62c724fd51e"
+  "version": "19806",
+  "new_release": "EVONETRTKBASE 1.9.8-06",
+  "comment": "IMEI del modem LTE nel riquadro SIM e modem della pagina Rete e nella scheda di accesso stampabile\r\nAvviso nel registro eventi se il modem viene sostituito (IMEI diverso)\r\nProvata sulla base di prova (07/10): IMEI 868909078545780 letto",
+  "sha256": "c0fab40e7cfc0ebcfacd86d338d0e04409f94fdebc4dd36ac51fe9384710e445"
 }

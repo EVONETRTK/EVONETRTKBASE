@@ -1423,6 +1423,33 @@ def remember_iccid(iccid, now=None):
         pass
 
 
+def parse_imei(lines):
+    """ IMEI del modem da AT+CGSN: "868909078545780" (Air780E) o "+CGSN: "868..."" -> 15 cifre """
+    for line in lines:
+        digits = re.sub(r"[^0-9]", "", line.split(":", 1)[-1])
+        if len(digits) == 15:
+            return digits
+    return None
+
+
+def remember_imei(imei, now=None):
+    """ Memorizza l'IMEI del modem; se cambia (modem sostituito) lo scrive nel registro eventi """
+    if not imei:
+        return
+    data = read_json(SIM_FILE, {})
+    if data.get("imei") == imei:
+        return
+    if data.get("imei"):
+        log("MODEM CAMBIATO: IMEI %s (prima %s)" % (imei, data["imei"]))
+    else:
+        log("modem letto: IMEI %s" % imei)
+    data.update(imei=imei, imei_time=int(now or time.time()))
+    try:
+        write_json(SIM_FILE, data)
+    except OSError:
+        pass
+
+
 def acknowledge_sim_change():
     data = read_json(SIM_FILE, {})
     if data.pop("changed", None):
@@ -1446,6 +1473,8 @@ def check_sim(settings, now):
     SIM_LAST["time"] = now
     try:
         remember_iccid(read_iccid(settings), now)
+        ok, lines = modem_at(settings, "AT+CGSN")
+        remember_imei(parse_imei(lines) if ok else None, now)
     except (OSError, TimeoutError):
         pass
 
@@ -1454,7 +1483,7 @@ def sim_info(settings=None):
     settings = settings or load_settings()
     data = read_json(SIM_FILE, {})
     return {"iccid": data.get("iccid"), "iccid_read_at": data.get("time"), "phone": settings["lte"]["phone"],
-            "changed": data.get("changed")}
+            "imei": data.get("imei"), "changed": data.get("changed")}
 
 
 def set_sim_phone(phone):
@@ -1492,6 +1521,8 @@ def modem_status():
                       "apn_saved": settings["lte"]["apn"], "pin_saved": bool(settings["lte"]["pin"])}
             model = [at_value([l], "+CGMM:") or l for l in ask("AT+CGMM")]      # "Air780E" o +CGMM: "Air780E"
             status["model"] = model[0].strip('"') if model else None
+            status["imei"] = parse_imei(ask("AT+CGSN"))
+            remember_imei(status["imei"])
 
             cfun = at_value(ask("AT+CFUN?"), "+CFUN:")
             status["radio"] = None if cfun is None else cfun.split(",")[0].strip() != "0"
