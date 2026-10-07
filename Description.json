@@ -1,6 +1,6 @@
 {
-  "version": "19807",
-  "new_release": "EVONETRTKBASE 1.9.8-07",
-  "comment": "Scheda di accesso: scritta STRETTAMENTE RISERVATO sempre visibile e in evidenza (riquadro rosso), anche senza mostrare le password e in stampa",
-  "sha256": "53d9ccdc184b24925dd8c0117be2ad8a9f7a3bbf0a36b97099b8c86de069cd62"
+  "version": "19808",
+  "new_release": "EVONETRTKBASE 1.9.8-08",
+  "comment": "Scheda di accesso: DOCUMENTO STRETTAMENTE RISERVATO in cima alla pagina, fascia rossa a tutta larghezza",
+  "sha256": "d0248875e8649f1c98ec228bb38df86d72cb0831aa4d917718d5235f0f3421b3"
 }
