@@ -924,7 +924,11 @@ $(document).ready(function () {
                 '<tr><th>Dispersione</th><td>' + r.spread.lat_m.toFixed(2) + ' / ' + r.spread.lon_m.toFixed(2) + ' / ' +
                     r.spread.h_m.toFixed(2) + ' m su ' + r.samples + ' soluzioni (' + escapeHtml(r.kind) + ', ' + r.minutes + ' minuti)</td></tr>' +
                 '</tbody></table>';
-            if (s.applied && s.applied.position) {
+            if (!r.usable && !(s.applied && s.applied.position)) {
+                out += '<div class="alert alert-warning small mb-0"><b>Misura non affidabile: non usarla come posizione fissa.</b> ' +
+                    escapeHtml((r.problems && r.problems.length ? r.problems : ["risultato di una versione precedente"]).join("; ")) +
+                    '. Di solito l\'antenna vede poco cielo o riceve segnali riflessi: spostala a cielo libero e ripeti la misura (almeno 2-4 ore).</div>';
+            } else if (s.applied && s.applied.position) {
                 out += '<div class="small text-success mb-1">Usata come posizione fissa il ' +
                     new Date(s.applied.time * 1000).toLocaleString("it-IT") + '.</div>' +
                     '<button class="btn btn-sm btn-outline-secondary" type="button" id="has-undo">Torna alla posizione precedente</button>';

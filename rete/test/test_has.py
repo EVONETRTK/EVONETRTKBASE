@@ -174,3 +174,25 @@ assert c.post("/api/network/has", json={"action": "start", "hours": 1}).get_json
 assert c.post("/api/network/has", json={"action": "start", "hours": 1}).status_code == 400
 assert c.post("/api/network/has", json={"action": "apply"}).status_code == 400   # misura in corso
 print("HAS ROUTE OK")
+
+# --- misura non affidabile (08/10, 6 ore dal balcone): dispersione di metri -> non utilizzabile
+import random
+random.seed(1)
+noisy = [[1791373161 + i * 30, "PPP", 40.83375 + random.uniform(-2e-5, 2e-5), 16.5482 + random.uniform(-4e-5, 4e-5),
+          494.5 + random.uniform(-2, 2), 0.19, 0.6, 0.76, 18] for i in range(40)]
+r = n.has_result(noisy, 0)
+assert not r["usable"] and any("orizzontale" in p for p in r["problems"]), r["problems"]
+assert n.has_result(good, 0)["usable"]
+assert not n.has_result(tail, 0)["usable"]                       # mai convergente
+st = n.has_state(); st["status"] = "done"; st["result"] = r; n._has_save(st)
+try:
+    n.has_request("apply"); raise SystemExit("misura non affidabile accettata")
+except ValueError as e:
+    assert "non affidabile" in str(e)
+st["result"] = {k: v for k, v in n.has_result(good, 0).items() if k not in ("usable", "problems")}   # versione vecchia
+n._has_save(st)
+try:
+    n.has_request("apply"); raise SystemExit("risultato senza verifica accettato")
+except ValueError:
+    pass
+print("MISURA NON AFFIDABILE BLOCCATA OK")

@@ -1,6 +1,6 @@
 {
-  "version": "19812",
-  "new_release": "EVONETRTKBASE 1.9.8-12",
-  "comment": "Misura della posizione della base con Galileo HAS dalla pagina Rete (Unicore UM98x): durata a scelta, andamento, media delle soluzioni, conversione in ETRF2000, Usa questa posizione / Torna alla precedente\r\nRipristino automatico del ricevitore a fine misura (anche se riparte da solo a meta'), con RESET e modalita' base di riserva\r\nPausa dei controlli automatici durante misure e prove: niente riavvii di ALTAMURA ne' reset del ricevitore\r\nProvata sulla base di prova il 07-08/10 (misura di 1 ora, ripristino alle 00:06)",
-  "sha256": "7721d48cebb6fab534593dd68df80d67ad79a84f2a7f77a60c663a1250281b36"
+  "version": "19813",
+  "new_release": "EVONETRTKBASE 1.9.8-13",
+  "comment": "Misura HAS: Usa questa posizione bloccato se la misura non e' affidabile (mai convergente, dispersione oltre 0,5 m in orizzontale o 1 m in quota), con avviso e spiegazione",
+  "sha256": "10ef16c3d3511036b3be34037c2afcfb3309ad43d159e258875e946333a916cf"
 }

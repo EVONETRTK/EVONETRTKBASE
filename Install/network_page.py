@@ -717,6 +717,8 @@ HAS_POLL = 30                       # una soluzione PPPNAVA ogni 30 s
 HAS_SWITCH_WAIT = 15                # attesa dopo il cambio di SIGNALGROUP (il ricevitore riparte)
 HAS_MAX_MISSES = 4                  # risposte mancanti di fila -> ricevitore ripartito: riconfigurare
 HAS_HOURS = (1, 2, 4, 6, 12, 24)
+HAS_MAX_SPREAD_H = 0.5              # dispersione massima delle soluzioni per usarle come posizione fissa (m)
+HAS_MAX_SPREAD_V = 1.0
 HAS_SETUP = ["UNLOG", "CONFIG PPP ENABLE E6-HAS", "CONFIG PPP DATUM WGS84", "MODE ROVER SURVEY DEFAULT", "GPGGA 1"]
 HAS_RESTORE = ["CONFIG PPP DISABLE", "CONFIG SIGNALGROUP 7 0"]
 HAS_RUNNING = ("starting", "switching", "measuring", "restoring", "verifying")
@@ -847,10 +849,21 @@ def has_result(samples, started_at):
              "h_m": statistics.fmean(s[7] for s in good)}
     epoch = decimal_year(statistics.fmean(s[0] for s in good))
     elat, elon, eh = itrf2020_to_etrf2000(lat, lon, h, epoch)
+    # utilizzabile come posizione fissa solo se le soluzioni stanno ferme (08/10, 6 ore dal balcone: precisione
+    # stimata 0,2-0,8 m ma dispersione reale 1,1 / 2,8 / 1,6 m -> i rover sarebbero spostati di metri)
+    problems = []
+    if kind != "convergente":
+        problems.append("la soluzione HAS non e' mai arrivata a convergenza")
+    if max(spread["lat_m"], spread["lon_m"]) > HAS_MAX_SPREAD_H:
+        problems.append("le soluzioni si spostano di %.1f m in orizzontale (massimo %.1f m)"
+                        % (max(spread["lat_m"], spread["lon_m"]), HAS_MAX_SPREAD_H))
+    if spread["h_m"] > HAS_MAX_SPREAD_V:
+        problems.append("le soluzioni si spostano di %.1f m in quota (massimo %.1f m)" % (spread["h_m"], HAS_MAX_SPREAD_V))
     return {"itrf2020": {"lat": lat, "lon": lon, "h": h, "epoch": round(epoch, 3)},
             "etrf2000": {"lat": elat, "lon": elon, "h": eh},
             "samples": len(good), "kind": kind, "sigma": sigma, "spread": spread,
-            "minutes": round((good[-1][0] - good[0][0]) / 60)}
+            "minutes": round((good[-1][0] - good[0][0]) / 60),
+            "usable": not problems, "problems": problems}
 
 
 def has_status():
@@ -904,6 +917,9 @@ def has_request(action):
         raise ValueError("c'e' una misura in corso")
     if action == "apply" and not state.get("result"):
         raise ValueError("nessuna misura completata da usare")
+    if action == "apply" and not state["result"].get("usable", False):
+        raise ValueError("misura non affidabile, non utilizzabile come posizione fissa: " +
+                         "; ".join(state["result"].get("problems") or ["risultato di una versione precedente"]))
     if action == "undo" and (state.get("applied") or {}).get("old_position") is None:
         raise ValueError("nessuna posizione precedente da ripristinare")
     state["request"] = action
