@@ -77,14 +77,14 @@ index 3b54ba2..6f66a62 100644
  rm -f $BUNDLE_NAME
  cat install_script.sh $ARCHIVE_NAME > $BUNDLE_NAME
 diff --git a/Install/install_script.sh b/Install/install_script.sh
-index 6e5db18..3eecd65 100644
+index 6e5db18..7995fb6 100644
 --- a/Install/install_script.sh
 +++ b/Install/install_script.sh
 @@ -1,5 +1,6 @@
  #!/bin/bash
 -NEW_VERSION=198
 +# EVONETRTKBASE: versione ELT (3 cifre) + nostra revisione (2 cifre): 19801 = ELT 1.9.8, revisione 01
-+NEW_VERSION=19811
++NEW_VERSION=19812
  
  RTKBASE_USER=rtkbase
  RTKBASE_PATH=/usr/local/${RTKBASE_USER}

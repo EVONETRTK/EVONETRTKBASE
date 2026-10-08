@@ -839,6 +839,131 @@ $(document).ready(function () {
         }
     }
 
+    //### Posizione della base (Galileo HAS) ###
+
+    const HAS_STATES = {starting: "avvio", switching: "riconfigurazione del ricevitore", measuring: "misura in corso",
+        restoring: "ripristino del ricevitore", verifying: "verifica del ripristino", done: "completata",
+        cancelled: "annullata", error: "non riuscita", idle: "nessuna misura"};
+    const HAS_RUNNING = ["starting", "switching", "measuring", "restoring", "verifying"];
+
+    function hasSparkline(history) {
+        // precisione orizzontale stimata (m) delle ultime soluzioni: scende mentre la soluzione converge
+        let pts = history.map(function (h) { return Math.max(h[2], h[3]); });
+        if (pts.length < 2) {
+            return "";
+        }
+        let max = Math.max.apply(null, pts.concat([0.5])), w = 300, hgt = 50;
+        let path = pts.map(function (v, i) {
+            return (i ? "L" : "M") + (i * w / (pts.length - 1)).toFixed(1) + "," + (hgt - v / max * hgt).toFixed(1);
+        }).join(" ");
+        return '<svg width="' + w + '" height="' + hgt + '" class="border rounded bg-light d-block my-1">' +
+            '<path d="' + path + '" fill="none" stroke="#0b5cad" stroke-width="2"/></svg>' +
+            '<span class="small text-muted">precisione orizzontale stimata, max ' + max.toFixed(2) + ' m</span>';
+    }
+
+    function fmtPos(p) {
+        return p.lat.toFixed(9) + ", " + p.lon.toFixed(9) + ", h " + p.h.toFixed(3) + " m";
+    }
+
+    function renderHas(s) {
+        if (!s.unicore) {
+            $("#has-card").addClass("d-none");
+            return;
+        }
+        let pos = (s.position || "").trim();
+        let auto = !pos || pos.split(/\s+/).every(function (x) { return Math.abs(parseFloat(x) || 0) === 0; });
+        $("#has-position").html('Posizione della base adesso: ' + (auto
+            ? '<b>automatica</b> <span class="text-muted">(ricalcolata a ogni avvio: i rover ricevono una posizione che cambia)</span>'
+            : '<b class="text-monospace">' + escapeHtml(pos) + '</b> <span class="text-muted">(fissa)</span>'));
+
+        let running = HAS_RUNNING.indexOf(s.status) >= 0;
+        let html = 'Misura: <b>' + escapeHtml(HAS_STATES[s.status] || s.status || "nessuna misura") + '</b>';
+        if (s.started && running) {
+            let min = Math.floor((s.now - s.started) / 60);
+            html += ' &mdash; ' + min + ' di ' + (s.hours * 60) + ' minuti';
+        } else if (running) {
+            html += ' (durata ' + s.hours + ' ore)';
+        }
+        if (s.count) {
+            html += ' &mdash; ' + s.count + ' soluzioni, ' + s.converged + ' convergenti';
+        }
+        if (running && s.last) {
+            html += '<div class="small">ultima soluzione: ' + escapeHtml(s.last.type) + ', precisione ' +
+                s.last.slat.toFixed(2) + ' / ' + s.last.slon.toFixed(2) + ' / ' + s.last.sh.toFixed(2) +
+                ' m (lat/lon/quota), satelliti usati ' + s.last.used + '</div>';
+        }
+        if (s.history && s.history.length > 1) {
+            html += hasSparkline(s.history);
+        }
+        if (s.message && !running) {
+            html += '<div class="small">' + escapeHtml(s.message) + '</div>';
+        }
+        if (s.log && s.log.length) {
+            html += '<details class="small mt-1"><summary>Dettagli</summary><pre class="mb-0" style="white-space: pre-wrap;">' +
+                escapeHtml(s.log.join("\n")) + '</pre></details>';
+        }
+        $("#has-info").html(html);
+
+        let sel = $("#has-hours");
+        if (!sel.children().length) {
+            (s.hours_choices || []).forEach(function (h) {
+                sel.append('<option value="' + h + '">' + h + (h === 1 ? " ora" : " ore") + '</option>');
+            });
+            sel.val(4);
+        }
+        $("#has-start, #has-hours").prop("disabled", running);
+        $("#has-cancel").toggleClass("d-none", ["starting", "switching", "measuring"].indexOf(s.status) < 0);
+
+        let r = s.result, out = "";
+        if (r && !running) {
+            out = '<table class="table table-sm small mb-2"><tbody>' +
+                '<tr><th>ETRF2000 (da usare)</th><td class="text-monospace"><b>' + fmtPos(r.etrf2000) + '</b></td></tr>' +
+                '<tr><th>ITRF2020 epoca ' + r.itrf2020.epoch + '</th><td class="text-monospace">' + fmtPos(r.itrf2020) + '</td></tr>' +
+                '<tr><th>Precisione stimata</th><td>' + r.sigma.lat_m.toFixed(2) + ' / ' + r.sigma.lon_m.toFixed(2) + ' / ' +
+                    r.sigma.h_m.toFixed(2) + ' m (lat/lon/quota)</td></tr>' +
+                '<tr><th>Dispersione</th><td>' + r.spread.lat_m.toFixed(2) + ' / ' + r.spread.lon_m.toFixed(2) + ' / ' +
+                    r.spread.h_m.toFixed(2) + ' m su ' + r.samples + ' soluzioni (' + escapeHtml(r.kind) + ', ' + r.minutes + ' minuti)</td></tr>' +
+                '</tbody></table>';
+            if (s.applied && s.applied.position) {
+                out += '<div class="small text-success mb-1">Usata come posizione fissa il ' +
+                    new Date(s.applied.time * 1000).toLocaleString("it-IT") + '.</div>' +
+                    '<button class="btn btn-sm btn-outline-secondary" type="button" id="has-undo">Torna alla posizione precedente</button>';
+            } else {
+                out += '<button class="btn btn-sm btn-success" type="button" id="has-apply">Usa questa posizione (ETRF2000)</button> ' +
+                    '<span class="small text-muted">diventa la posizione fissa della base; il ricevitore e il pannello ripartono</span>';
+            }
+        } else if (!r && !running && (s.status === "done" || s.status === "cancelled")) {
+            out = '<div class="small text-danger">Nessuna soluzione HAS utilizzabile: misura troppo breve o antenna con poco cielo.</div>';
+        }
+        $("#has-result").html(out);
+    }
+
+    function loadHas() {
+        $.getJSON("/api/network/has", renderHas);
+    }
+
+    function hasAction(data, confirmText) {
+        if (confirmText && !window.confirm(confirmText)) {
+            return;
+        }
+        postJson("/api/network/has", data).done(function (s) { renderHas(s); showError(null); }).fail(requestFailed);
+    }
+
+    $("#has-start").on("click", function () {
+        let hours = parseInt($("#has-hours").val(), 10);
+        hasAction({action: "start", hours: hours}, "Avviare la misura HAS per " + hours +
+            (hours === 1 ? " ora" : " ore") + "? Per tutto il tempo la base NON trasmette al caster.");
+    });
+    $("#has-cancel").on("click", function () {
+        hasAction({action: "cancel"}, "Annullare la misura? Il ricevitore torna da base e la trasmissione riparte.");
+    });
+    $("#has-result").on("click", "#has-apply", function () {
+        hasAction({action: "apply"}, "Usare questa posizione (ETRF2000) come posizione fissa della base?");
+    });
+    $("#has-result").on("click", "#has-undo", function () {
+        hasAction({action: "undo"}, "Tornare alla posizione precedente?");
+    });
+
     //### Aggiornamenti ###
 
     function renderUpdate(u) {
@@ -884,6 +1009,8 @@ $(document).ready(function () {
     loadLte();
     loadEvents();
     loadUpdate();
+    loadHas();
     setInterval(loadEvents, 30000);
+    setInterval(loadHas, 30000);
     pollOperation();
 });

@@ -250,6 +250,28 @@
     </div>
   </div>
 
+  <!-- Posizione della base (Galileo HAS) -->
+  <div class="card net-section" id="has-card">
+    <div class="card-header font-weight-bold">Posizione della base (misura con Galileo HAS)</div>
+    <div class="card-body">
+      <div id="has-position" class="mb-2"></div>
+      <div id="has-info" class="mb-2"></div>
+      <div class="form-inline mb-2" id="has-start-box">
+        <label class="mr-2" for="has-hours">Durata</label>
+        <select id="has-hours" class="custom-select custom-select-sm mr-2"></select>
+        <button id="has-start" class="btn btn-sm btn-primary mr-2" type="button">Avvia la misura</button>
+        <button id="has-cancel" class="btn btn-sm btn-outline-danger d-none" type="button">Annulla la misura</button>
+      </div>
+      <div id="has-result" class="mb-2"></div>
+      <p class="small text-muted mb-0">
+        Il ricevitore passa in modalità rover con le correzioni Galileo HAS (via satellite, gratuite) e calcola la
+        propria posizione assoluta: circa 10-20 cm dopo qualche ora, meglio con l'antenna a cielo libero.
+        <b>Durante la misura la trasmissione al caster (ALTAMURA) è ferma</b>; alla fine il ricevitore torna da base
+        da solo. Il risultato è convertito in <b>ETRF2000</b> (RDN2008), il sistema di tutte le basi della rete.
+      </p>
+    </div>
+  </div>
+
   <!-- Aggiornamenti -->
   <div class="card net-section">
     <div class="card-header font-weight-bold">Aggiornamenti del software</div>

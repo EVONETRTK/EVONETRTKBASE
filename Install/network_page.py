@@ -704,6 +704,365 @@ def check_update_periodically(now, settings):
             % (result["latest_label"], result["channel"]))
 
 
+#### misura della posizione della base con Galileo HAS (Unicore UM98x) ####
+# Sequenza verificata il 07/10 sull'UM982 (firmware R4.10Build13495): "CONFIG PPP ENABLE E6-HAS" e' accettato
+# solo dopo "CONFIG SIGNALGROUP 3 6" (con il gruppo da base 7 0 risponde "does not support E6-HAS"); il cambio
+# di gruppo fa ripartire il ricevitore. Ripristino: PPP spento e SIGNALGROUP 7 0, che lo fa ripartire con la
+# configurazione salvata (base + messaggi RTCM). La misura e' una sequenza di passi gestita dal servizio watch e
+# salvata su file: sopravvive ai riavvii del pannello e del servizio, e se il ricevitore riparte da solo a meta'
+# (successo il 07/10 alle 20:49) viene riconfigurato.
+
+HAS_FILE = "/usr/local/rtkbase/network_has.json"
+HAS_POLL = 30                       # una soluzione PPPNAVA ogni 30 s
+HAS_SWITCH_WAIT = 15                # attesa dopo il cambio di SIGNALGROUP (il ricevitore riparte)
+HAS_MAX_MISSES = 4                  # risposte mancanti di fila -> ricevitore ripartito: riconfigurare
+HAS_HOURS = (1, 2, 4, 6, 12, 24)
+HAS_SETUP = ["UNLOG", "CONFIG PPP ENABLE E6-HAS", "CONFIG PPP DATUM WGS84", "MODE ROVER SURVEY DEFAULT", "GPGGA 1"]
+HAS_RESTORE = ["CONFIG PPP DISABLE", "CONFIG SIGNALGROUP 7 0"]
+HAS_RUNNING = ("starting", "switching", "measuring", "restoring", "verifying")
+
+# EPSG 10586 "ITRF2020 to ETRF2000 (1)" (EUREF TN1, 2024), epoca 2015.0, come la base ESP32 (main/etrf.c)
+ETRF_T = (0.0538, 0.0518, -0.0822)
+ETRF_R = (2.106, 12.74, -20.592)           # milliarcosecondi
+ETRF_D = 2.25                              # ppb
+ETRF_DT = (0.0001, 0.0, -0.0017)
+ETRF_DR = (0.081, 0.49, -0.792)
+ETRF_DD = 0.11
+GRS80_A = 6378137.0
+GRS80_E2 = (1 / 298.257222101) * (2 - 1 / 298.257222101)
+
+
+def _geo_to_ecef(lat, lon, h):
+    import math
+    la, lo = math.radians(lat), math.radians(lon)
+    n = GRS80_A / math.sqrt(1 - GRS80_E2 * math.sin(la) ** 2)
+    return ((n + h) * math.cos(la) * math.cos(lo), (n + h) * math.cos(la) * math.sin(lo),
+            (n * (1 - GRS80_E2) + h) * math.sin(la))
+
+
+def _ecef_to_geo(x, y, z):
+    import math
+    p = math.hypot(x, y)
+    lat = math.atan2(z, p * (1 - GRS80_E2))
+    h = 0.0
+    for _ in range(10):
+        n = GRS80_A / math.sqrt(1 - GRS80_E2 * math.sin(lat) ** 2)
+        h = p / math.cos(lat) - n
+        lat = math.atan2(z, p * (1 - GRS80_E2 * n / (n + h)))
+    return math.degrees(lat), math.degrees(math.atan2(y, x)), h
+
+
+def itrf2020_to_etrf2000(lat, lon, h, epoch):
+    """ Da ITRF2020 all'epoca della misura (HAS) a ETRF2000 (RDN2008), il sistema di tutte le basi della rete """
+    import math
+    dt = epoch - 2015.0
+    t = [ETRF_T[i] + ETRF_DT[i] * dt for i in range(3)]
+    r = [math.radians((ETRF_R[i] + ETRF_DR[i] * dt) / 3600000.0) for i in range(3)]
+    d = (ETRF_D + ETRF_DD * dt) * 1e-9
+    x = _geo_to_ecef(lat, lon, h)
+    y = (t[0] + (1 + d) * x[0] - r[2] * x[1] + r[1] * x[2],
+         t[1] + r[2] * x[0] + (1 + d) * x[1] - r[0] * x[2],
+         t[2] - r[1] * x[0] + r[0] * x[1] + (1 + d) * x[2])
+    return _ecef_to_geo(*y)
+
+
+def decimal_year(t):
+    import calendar
+    g = time.gmtime(t)
+    days = 366 if calendar.isleap(g.tm_year) else 365
+    return g.tm_year + ((g.tm_yday - 1) * 86400 + g.tm_hour * 3600 + g.tm_min * 60 + g.tm_sec) / (days * 86400.0)
+
+
+def has_state():
+    return read_json(HAS_FILE, {"status": "idle"})
+
+
+def _has_save(state):
+    write_json(HAS_FILE, state)
+
+
+def receiver_commands(commands, wait=1.5):
+    """ Manda comandi al ricevitore Unicore (porta TCP di str2str) e ritorna le risposte "$command,..." """
+    port = unicore_tcp_port()
+    if port is None:
+        raise OSError("ricevitore non Unicore")
+    answers = []
+    sock = socket.create_connection(("127.0.0.1", port), timeout=5)
+    sock.settimeout(0.3)
+    try:
+        for command in commands:
+            sock.sendall(command.encode() + b"\r\n")
+            data, end = b"", time.time() + wait
+            while time.time() < end and b"$command" not in data:
+                try:
+                    data += sock.recv(8192)
+                except socket.timeout:
+                    pass
+            end = time.time() + 0.3
+            while time.time() < end:
+                try:
+                    data += sock.recv(8192)
+                except socket.timeout:
+                    break
+            found = re.findall(rb"\$command,[\x20-\x7e]*", data)
+            answers.append(found[0].decode() if found else "%s: nessuna risposta" % command)
+    finally:
+        sock.close()
+    return answers
+
+
+def parse_pppnav(line):
+    """ #PPPNAVA -> {type, lat, lon, h, slat, slon, sh, sv, used} o None (formato come BESTNAVA) """
+    if not line or b";" not in line:
+        return None
+    f = line.split(b";", 1)[1].decode(errors="replace").split(",")
+    try:
+        return {"type": f[1], "lat": float(f[2]), "lon": float(f[3]), "h": float(f[4]),
+                "slat": float(f[7]), "slon": float(f[8]), "sh": float(f[9]),
+                "sv": int(f[13]), "used": int(f[14])}
+    except (IndexError, ValueError):
+        return None
+
+
+def has_result(samples, started_at):
+    """ Media delle soluzioni HAS: solo quelle convergenti ("PPP"); se non ce ne sono, l'ultimo quarto della
+        misura con precisione stimata sotto 1 m. Ritorna None se non c'e' niente di utilizzabile. """
+    import statistics
+    good = [s for s in samples if s[1] == "PPP"]
+    kind = "convergente"
+    if not good:
+        tail = samples[len(samples) * 3 // 4:]
+        good = [s for s in tail if s[1] == "PPP_CONVERGING" and max(s[5], s[6]) < 1.0 and s[7] < 2.0]
+        kind = "in convergenza (meno affidabile)"
+    if len(good) < 10:
+        return None
+    lat = statistics.fmean(s[2] for s in good)
+    lon = statistics.fmean(s[3] for s in good)
+    h = statistics.fmean(s[4] for s in good)
+    m_lat, m_lon = 111132.0, 111320.0 * __import__("math").cos(__import__("math").radians(lat))
+    spread = {"lat_m": statistics.pstdev([s[2] * m_lat for s in good]),
+              "lon_m": statistics.pstdev([s[3] * m_lon for s in good]),
+              "h_m": statistics.pstdev([s[4] for s in good])}
+    sigma = {"lat_m": statistics.fmean(s[5] for s in good), "lon_m": statistics.fmean(s[6] for s in good),
+             "h_m": statistics.fmean(s[7] for s in good)}
+    epoch = decimal_year(statistics.fmean(s[0] for s in good))
+    elat, elon, eh = itrf2020_to_etrf2000(lat, lon, h, epoch)
+    return {"itrf2020": {"lat": lat, "lon": lon, "h": h, "epoch": round(epoch, 3)},
+            "etrf2000": {"lat": elat, "lon": elon, "h": eh},
+            "samples": len(good), "kind": kind, "sigma": sigma, "spread": spread,
+            "minutes": round((good[-1][0] - good[0][0]) / 60)}
+
+
+def has_status():
+    """ Per la pagina: stato della misura senza tutte le soluzioni (solo le ultime, per il grafico) """
+    state = has_state()
+    samples = state.get("samples", [])
+    out = {k: v for k, v in state.items() if k not in ("samples", "previous_result")}
+    out.update(count=len(samples), converged=sum(1 for s in samples if s[1] == "PPP"),
+               history=[[s[0], s[1], round(s[5], 3), round(s[6], 3), round(s[7], 3)] for s in samples[-240:]],
+               position=rtkbase_conf("position"), now=int(time.time()), hours_choices=list(HAS_HOURS),
+               unicore=unicore_tcp_port() is not None)
+    return out
+
+
+def has_start(hours):
+    state = has_state()
+    if state.get("status") in HAS_RUNNING:
+        raise ValueError("c'e' gia' una misura in corso")
+    if unicore_tcp_port() is None:
+        raise ValueError("la misura HAS funziona solo con ricevitori Unicore UM98x")
+    if hours not in HAS_HOURS:
+        raise ValueError("durata non valida")
+    previous = state.get("result")
+    state = {"status": "starting", "hours": hours, "requested": int(time.time()), "samples": [],
+             "previous_result": previous, "log": []}
+    _has_save(state)
+    set_pause(hours * 3600 + 3600, "misura della posizione con Galileo HAS")
+    log("misura della posizione con Galileo HAS richiesta: %d ore (ALTAMURA ferma durante la misura)" % hours)
+    return state
+
+
+def has_cancel():
+    state = has_state()
+    if state.get("status") in ("starting", "switching", "measuring"):
+        state["cancel"] = True
+        _has_save(state)
+    return state
+
+
+def _has_note(state, text):
+    state.setdefault("log", []).append("%s %s" % (time.strftime("%H:%M:%S"), text))
+    state["log"] = state["log"][-40:]
+    log("misura HAS: " + text)
+
+
+def has_request(action):
+    """ Dal pannello: "apply" (usa la posizione misurata) o "undo" (torna a quella precedente). Le esegue il
+        servizio watch, perche' riavviano anche il pannello. """
+    state = has_state()
+    if state.get("status") in HAS_RUNNING:
+        raise ValueError("c'e' una misura in corso")
+    if action == "apply" and not state.get("result"):
+        raise ValueError("nessuna misura completata da usare")
+    if action == "undo" and (state.get("applied") or {}).get("old_position") is None:
+        raise ValueError("nessuna posizione precedente da ripristinare")
+    state["request"] = action
+    _has_save(state)
+    return state
+
+
+def has_tick(now):
+    """ Nel servizio watch, a ogni giro: porta avanti la misura HAS un passo alla volta """
+    state = has_state()
+    status = state.get("status")
+    if state.get("request") and status not in HAS_RUNNING:
+        action = state.pop("request")
+        _has_save(state)
+        try:
+            has_apply() if action == "apply" else has_undo()
+        except (OSError, ValueError) as e:
+            log("posizione della base non cambiata: %s" % e)
+        return
+    if status not in HAS_RUNNING:
+        return
+    try:
+        _has_step(state, status, now)
+    except (OSError, ValueError) as e:            # ricevitore che riparte, servizio str2str in riavvio...
+        state["misses"] = state.get("misses", 0) + 1
+        if state["misses"] in (1, HAS_MAX_MISSES):
+            _has_note(state, "ricevitore non raggiungibile (%s)" % e)
+        if status in ("restoring", "verifying") and state["misses"] > 20:
+            _has_finish(state, "error", "ripristino non confermato: controllare il ricevitore")
+    _has_save(state)
+
+
+def _has_step(state, status, now):
+    if status == "starting":
+        run(["systemctl", "stop", "str2str_ntrip_A.service"], timeout=60)
+        answers = receiver_commands(["CONFIG SIGNALGROUP 3 6"], 3)
+        _has_note(state, "ALTAMURA fermata, gruppo di segnali per HAS: " + answers[0])
+        state.update(status="switching", next_at=now + HAS_SWITCH_WAIT, misses=0)
+    elif status == "switching" and now >= state.get("next_at", 0):
+        answers = receiver_commands(HAS_SETUP)
+        if not all("OK" in a for a in answers[:4]):
+            _has_note(state, "configurazione HAS rifiutata: " + " | ".join(answers))
+            state.update(status="restoring", failed="il ricevitore non accetta Galileo HAS: " + answers[1])
+            return
+        if not state.get("started"):
+            state["started"] = now
+        _has_note(state, "Galileo HAS attivo, misura in corso")
+        state.update(status="measuring", next_at=now, misses=0)
+    elif status == "measuring":
+        if state.get("cancel") or now - state["started"] >= state["hours"] * 3600:
+            _has_note(state, "misura annullata" if state.get("cancel") else "misura completata")
+            state["result"] = has_result(state["samples"], state["started"])
+            state["status"] = "restoring"
+            return
+        if now < state.get("next_at", 0):
+            return
+        state["next_at"] = now + HAS_POLL
+        _, line = receiver_session(b"PPPNAVA", b"#PPPNAVA")
+        sol = parse_pppnav(line)
+        if sol is None:
+            state["misses"] = state.get("misses", 0) + 1
+            if state["misses"] >= HAS_MAX_MISSES:           # ricevitore ripartito da solo: riconfigurarlo
+                _has_note(state, "nessuna soluzione HAS da %d letture: riconfiguro il ricevitore" % state["misses"])
+                state.update(status="starting", misses=0)
+            return
+        state["misses"] = 0
+        if sol["type"] == "NONE" and sol["sv"] == 0:
+            return
+        state["samples"].append([int(now), sol["type"], sol["lat"], sol["lon"], sol["h"],
+                                 sol["slat"], sol["slon"], sol["sh"], sol["used"]])
+        state["last"] = sol
+    elif status == "restoring":
+        answers = receiver_commands(HAS_RESTORE, 3)
+        _has_note(state, "ripristino del ricevitore: " + " | ".join(answers))
+        state.update(status="verifying", next_at=now + 25, misses=0, checks=0)
+    elif status == "verifying" and now >= state.get("next_at", 0):
+        state["checks"] = state.get("checks", 0) + 1
+        heard, mode = receiver_session(b"MODE", b"#MODE", listen=3)
+        mode_text = mode.decode(errors="replace") if mode else ""
+        if heard and "MODE BASE" in mode_text:
+            run(["systemctl", "start", "str2str_ntrip_A.service"], timeout=60)
+            _has_finish(state, "cancelled" if state.get("cancel") else ("error" if state.get("failed") else "done"),
+                        state.get("failed") or "ricevitore di nuovo in modalita' base, ALTAMURA riavviata")
+            return
+        if state["checks"] == 2:
+            _has_note(state, "ricevitore non ancora tornato da base (%s): RESET" % (mode_text[-60:] or "muto"))
+            receiver_commands(["RESET"], 3)
+        elif state["checks"] == 4:
+            _has_note(state, "rimando la modalita' base")
+            receiver_commands(["MODE BASE 1 TIME 60 1"], 3)
+        elif state["checks"] >= 6:
+            run(["systemctl", "start", "str2str_ntrip_A.service"], timeout=60)
+            _has_finish(state, "error", "il ricevitore non conferma la modalita' base: controllarlo")
+            return
+        state["next_at"] = now + 30
+
+
+def _has_finish(state, status, message):
+    state.update(status=status, finished=int(time.time()), message=message)
+    state.pop("next_at", None)
+    _has_note(state, message)
+    clear_pause()
+
+
+def has_apply():
+    """ Scrive la posizione misurata (ETRF2000) come posizione fissa della base in ELT_RTKBase e fa ripartire il
+        servizio del ricevitore, che la manda al ricevitore (MODE BASE lat lon h). Ritorna le coordinate. """
+    state = has_state()
+    result = state.get("result")
+    if state.get("status") in HAS_RUNNING or not result:
+        raise ValueError("nessuna misura completata da usare")
+    pos = result["etrf2000"]
+    value = "%.9f %.9f %.4f" % (pos["lat"], pos["lon"], pos["h"])
+    _set_rtkbase_position(value, state)
+    state["applied"] = dict(state.get("applied", {}), time=int(time.time()), position=value)
+    _has_save(state)
+    log("posizione fissa della base impostata dalla misura HAS (ETRF2000): %s" % value)
+    return value
+
+
+def has_undo():
+    state = has_state()
+    old = (state.get("applied") or {}).get("old_position")
+    if old is None:
+        raise ValueError("nessuna posizione precedente da ripristinare")
+    _set_rtkbase_position(old, None)
+    state.pop("applied", None)
+    _has_save(state)
+    log("posizione della base riportata a quella precedente: %s" % old)
+    return old
+
+
+def _set_rtkbase_position(value, state):
+    text = read_sys(RTKBASE_SETTINGS)
+    if not re.search(r"^position\s*=", text, re.MULTILINE):
+        raise ValueError("impostazione position non trovata in settings.conf")
+    old = rtkbase_conf("position")
+    if state is not None:
+        state.setdefault("applied", {})["old_position"] = old
+    text = re.sub(r"^position\s*=.*$", "position='%s'" % value, text, count=1, flags=re.MULTILINE)
+    tmp = RTKBASE_SETTINGS + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(text)
+    shutil_copy_owner(RTKBASE_SETTINGS, tmp)
+    os.replace(tmp, RTKBASE_SETTINGS)
+    # il pannello tiene le impostazioni in memoria: va riavviato per non riscrivere la posizione vecchia
+    for service in ("rtkbase_web.service", "str2str_tcp.service"):
+        run(["systemctl", "restart", service], timeout=60)
+
+
+def shutil_copy_owner(src, dst):
+    try:
+        st = os.stat(src)
+        os.chmod(dst, st.st_mode & 0o777)
+        os.chown(dst, st.st_uid, st.st_gid)       # settings.conf e' dell'utente rtkbase
+    except (OSError, AttributeError):             # AttributeError: os.chown non c'e' su Windows (test)
+        pass
+
+
 #### scheda di accesso stampabile ####
 
 def rtkbase_conf(key):
@@ -2027,6 +2386,9 @@ def check_receiver_output(now, temps, read_satellites):
     """ Ricevitore acceso ma senza dati (03-05/10: muto per minuti, poi riparte da solo, mentre ai
         comandi risponde): registra quando succede e quanti satelliti vede, per capire se e' l'antenna """
     st = RECEIVER_OUTPUT
+    if pause_info(now):                # misura o prova in corso: niente reset ne' avvisi sul ricevitore
+        st.update(silent_since=None, reset_at=None, restart_at=None)
+        return
     if st["restart_at"] is not None and now >= st["restart_at"]:
         # dopo il RESET il ricevitore riparte con la configurazione salvata: il riavvio del servizio gli
         # rimanda quella da base (UnicoreSetBasePos.sh) e fa ripartire anche le trasmissioni NTRIP
@@ -2225,10 +2587,37 @@ def services_state(units):
     return states
 
 
+PAUSE_FILE = "/usr/local/rtkbase/network_pause.json"
+
+
+def pause_info(now=None):
+    """ Pausa dei controlli automatici sulla trasmissione e sul ricevitore (misure, prove):
+        {"until", "reason"} se attiva, altrimenti None. Scade da sola. """
+    data = read_json(PAUSE_FILE, {})
+    return data if data.get("until", 0) > (now or time.time()) else None
+
+
+def set_pause(seconds, reason):
+    write_json(PAUSE_FILE, {"until": int(time.time() + seconds), "reason": reason})
+    log("controlli automatici in pausa per %d minuti: %s" % (seconds // 60, reason))
+
+
+def clear_pause():
+    if os.path.exists(PAUSE_FILE):
+        os.remove(PAUSE_FILE)
+        log("controlli automatici di nuovo attivi")
+
+
 def guard_services(now):
-    """ Riavvia i servizi della base abilitati ma fermi da GUARD_DELAY secondi """
+    """ Riavvia i servizi della base abilitati ma fermi da GUARD_DELAY secondi. In pausa (misura HAS, prove
+        sul ricevitore) non tocca le trasmissioni verso l'esterno: il 07/10 le ha riavviate 8 volte durante
+        una prova HAS, mandando al caster i dati del ricevitore in modalita' rover """
     states = services_state(GUARDED_SERVICES)
+    pause = pause_info(now)
     for service in GUARDED_SERVICES:
+        if pause and service in OUTGOING_SERVICES:
+            GUARD.pop(service, None)
+            continue
         state = states.get(service, {})
         if state.get("UnitFileState") != "enabled":
             GUARD.pop(service, None)
@@ -2436,6 +2825,7 @@ def watch():
             if now - GUARD_LAST["time"] >= GUARD_PERIOD:
                 guard_services(now)
                 GUARD_LAST["time"] = now
+            has_tick(now)
             last_health = now
 
         route = internet_device()

@@ -201,6 +201,27 @@ def sim():
     return jsonify(net.sim_info())
 
 
+@blueprint.route("/api/network/has", methods=["GET", "POST"])
+@login_required
+def has():
+    """ Misura della posizione della base con Galileo HAS. POST {action: start, hours} | cancel | apply | undo """
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        action = data.get("action")
+        try:
+            if action == "start":
+                net.has_start(int(data.get("hours") or 0))
+            elif action == "cancel":
+                net.has_cancel()
+            elif action in ("apply", "undo"):
+                net.has_request(action)
+            else:
+                return error("Azione non valida.")
+        except (ValueError, TypeError) as e:
+            return error(str(e))
+    return jsonify(net.has_status())
+
+
 @blueprint.route("/api/network/lte/limit", methods=["POST"])
 @login_required
 def lte_limit():

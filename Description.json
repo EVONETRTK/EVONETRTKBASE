@@ -1,6 +1,6 @@
 {
-  "version": "19811",
-  "new_release": "EVONETRTKBASE 1.9.8-11",
-  "comment": "Pagina Rete: titolo Rete - base Raspberry Pi",
-  "sha256": "fc893ef5f7ecd1bece8cdd1a97d3c159ccdb350dbfff4b4d62281c6a14883654"
+  "version": "19812",
+  "new_release": "EVONETRTKBASE 1.9.8-12",
+  "comment": "Misura della posizione della base con Galileo HAS dalla pagina Rete (Unicore UM98x): durata a scelta, andamento, media delle soluzioni, conversione in ETRF2000, Usa questa posizione / Torna alla precedente\r\nRipristino automatico del ricevitore a fine misura (anche se riparte da solo a meta'), con RESET e modalita' base di riserva\r\nPausa dei controlli automatici durante misure e prove: niente riavvii di ALTAMURA ne' reset del ricevitore\r\nProvata sulla base di prova il 07-08/10 (misura di 1 ora, ripristino alle 00:06)",
+  "sha256": "7721d48cebb6fab534593dd68df80d67ad79a84f2a7f77a60c663a1250281b36"
 }
