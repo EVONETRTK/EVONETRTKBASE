@@ -2392,6 +2392,100 @@ RECEIVER_RESTART_DELAY = 30        # dopo il reset: riavvio del servizio, che ri
 RECEIVER_RESET_FILE = "/usr/local/rtkbase/network_receiver_reset.json"
 
 
+#### porta USB del ricevitore bloccata ####
+# 17/10 06:27: il convertitore CH340 del ricevitore e' rimasto collegato ma non rispondeva piu' ai comandi USB
+# (errore -32, "can't set config"): /dev/ttyGNSS non si apriva, str2str_tcp ripartiva a vuoto e ALTAMURA e' rimasta
+# ferma quasi 2 ore. Si e' sbloccato con un reset della sola porta USB (USBDEVFS_RESET) e la riattivazione del
+# dispositivo (authorized 0/1). Qui lo stesso rimedio, automatico.
+
+RECEIVER_PORT = {"bad_since": None, "last_reset": 0, "usb": None}
+RECEIVER_PORT_BAD_AFTER = 180       # servizio del ricevitore fermo e porta che non si apre da 3 minuti
+RECEIVER_PORT_RESET_EVERY = 900     # al massimo un reset della porta USB ogni 15 minuti
+USBDEVFS_RESET = 21780
+
+
+def receiver_usb_name(port):
+    """ Nome del dispositivo USB del ricevitore in /sys/bus/usb/devices (es. "1-1.3"), dalla sua porta seriale """
+    tty = os.path.basename(os.path.realpath("/dev/" + port))
+    usb = tty_usb_device(tty) if tty.startswith("tty") else None
+    if usb:
+        return os.path.basename(usb)
+    # porta sparita (dispositivo bloccato senza driver): un solo convertitore seriale USB noto = il ricevitore
+    found = [os.path.basename(d) for d in glob.glob("/sys/bus/usb/devices/*-*")
+             if ":" not in os.path.basename(d) and read_sys(d + "/idVendor") in SERIAL_ADAPTER_VENDORS]
+    return found[0] if len(found) == 1 else None
+
+
+# convertitori USB-seriale dei ricevitori: CH340, FTDI, CP210x, PL2303, u-blox (mai i modem LTE)
+SERIAL_ADAPTER_VENDORS = ("1a86", "0403", "10c4", "067b", "1546")
+
+
+def port_opens(path):
+    try:
+        fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    except OSError:
+        return False
+    os.close(fd)
+    return True
+
+
+def reset_usb_device(name):
+    """ Reset della porta USB e riattivazione del dispositivo (ripete la sequenza che ha funzionato il 17/10) """
+    import fcntl
+    base = "/sys/bus/usb/devices/" + name
+    bus, dev = int(read_sys(base + "/busnum")), int(read_sys(base + "/devnum"))
+    fd = os.open("/dev/bus/usb/%03d/%03d" % (bus, dev), os.O_WRONLY)
+    try:
+        fcntl.ioctl(fd, USBDEVFS_RESET, 0)
+    except OSError:
+        pass                                     # il reset puo' fallire con il dispositivo bloccato: si riattiva lo stesso
+    finally:
+        os.close(fd)
+    time.sleep(3)
+    for value in ("0", "1"):
+        with open(base + "/authorized", "w") as f:
+            f.write(value)
+        time.sleep(3)
+
+
+def check_receiver_port(now):
+    """ Nel servizio watch: se il servizio del ricevitore non parte e la sua porta seriale non si apre da
+        RECEIVER_PORT_BAD_AFTER, resetta la porta USB del ricevitore e fa ripartire il servizio """
+    st = RECEIVER_PORT
+    port = rtkbase_com_port()
+    if not port or pause_info(now):
+        st["bad_since"] = None
+        return
+    service_ok = run(["systemctl", "is-active", "str2str_tcp.service"]).strip() in ("active", "reloading")
+    if service_ok:                               # porta in uso da str2str: va bene, ricordo dov'e' il ricevitore
+        st["usb"] = receiver_usb_name(port) or st["usb"]
+        st["bad_since"] = None
+        return
+    if port_opens("/dev/" + port):
+        st["usb"] = receiver_usb_name(port) or st["usb"]
+        st["bad_since"] = None
+        return
+    st["bad_since"] = st["bad_since"] or now
+    if now - st["bad_since"] < RECEIVER_PORT_BAD_AFTER or now - st["last_reset"] < RECEIVER_PORT_RESET_EVERY:
+        return
+    name = receiver_usb_name(port) or st["usb"]
+    st["last_reset"] = now
+    if not name:
+        log("porta del ricevitore /dev/%s non disponibile da %d minuti: dispositivo USB non trovato, "
+            "controllare il cavo del ricevitore" % (port, (now - st["bad_since"]) // 60))
+        return
+    log("porta del ricevitore /dev/%s bloccata da %d minuti: reset della porta USB %s"
+        % (port, (now - st["bad_since"]) // 60, name))
+    try:
+        reset_usb_device(name)
+    except (OSError, ValueError) as e:
+        log("reset della porta USB del ricevitore non riuscito: %s" % e)
+        return
+    run(["systemctl", "restart", "str2str_tcp.service"], timeout=60)
+    log("porta del ricevitore dopo il reset: %s" % ("di nuovo disponibile" if port_opens("/dev/" + port)
+                                                     else "ancora bloccata (staccare e riattaccare il ricevitore)"))
+
+
 def describe_satellites(sats):
     if not sats:
         return "satelliti non disponibili"
@@ -2828,6 +2922,7 @@ def watch():
             write_lte_state(settings)
             read_receiver = now - last_receiver_temp >= RECEIVER_TEMP_PERIOD
             if slow:
+                check_receiver_port(now)
                 check_receiver_output(now, temps, read_receiver)
             if slow or read_receiver:
                 check_temperatures(settings, temps, now, read_receiver)

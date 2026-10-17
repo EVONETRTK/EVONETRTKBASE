@@ -1,6 +1,6 @@
 {
-  "version": "19813",
-  "new_release": "EVONETRTKBASE 1.9.8-13",
-  "comment": "Misura HAS: Usa questa posizione bloccato se la misura non e' affidabile (mai convergente, dispersione oltre 0,5 m in orizzontale o 1 m in quota), con avviso e spiegazione",
-  "sha256": "10ef16c3d3511036b3be34037c2afcfb3309ad43d159e258875e946333a916cf"
+  "version": "19814",
+  "new_release": "EVONETRTKBASE 1.9.8-14",
+  "comment": "Porta USB del ricevitore bloccata (convertitore CH340 che non risponde, 17/10 ALTAMURA ferma 2 ore): dopo 3 minuti reset automatico della porta USB e riavvio del servizio, al massimo ogni 15 minuti",
+  "sha256": "cf729f18938905a2c0f7bc8bd54686c649f46312af802c1a3d133fa1929537ab"
 }
