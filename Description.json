@@ -1,6 +1,6 @@
 {
-  "version": "19815",
-  "new_release": "EVONETRTKBASE 1.9.8-15",
-  "comment": "Avvisi via SMS dalla SIM della base: trasmissione al caster ferma da 15 minuti (con il motivo), promemoria ogni 12 ore, avviso quando torna in linea; niente avvisi durante una misura HAS; massimo 10 SMS al giorno\r\nRiquadro Avvisi via SMS nella pagina Rete: numeri, minuti, SMS di prova",
-  "sha256": "405c6d5252ae16c64cdd85fd9f02ad997c22cebe748c4d4af03a858dd5cf6786"
+  "version": "19816",
+  "new_release": "EVONETRTKBASE 1.9.8-16",
+  "comment": "Avvisi SMS: la trasmissione risulta in linea solo con ricevitore presente che manda dati e NTRIP collegato (prima i riavvii del servizio NTRIP facevano credere la base in linea e l'avviso non partiva)",
+  "sha256": "0923b9a6ce349c3b4abf0e868b178f6c7fcb0ac96fb3ff412f6de9bd46ea0b78"
 }

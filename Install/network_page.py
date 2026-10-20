@@ -2569,7 +2569,17 @@ def send_alert(settings, text):
 
 
 def transmission_up():
-    """ True se la trasmissione NTRIP A e' attiva e collegata al caster """
+    """ True se la base sta davvero trasmettendo: ricevitore presente con il suo servizio attivo e dati che
+        arrivano, trasmissione NTRIP A attiva e collegata al caster. (20/10: guardando solo NTRIP A la base
+        si credeva in linea a ogni riavvio del servizio, che si collega al caster per pochi secondi anche senza
+        dati, e l'avviso non partiva mai.) """
+    port = rtkbase_com_port()
+    if port and not os.path.exists("/dev/" + port):
+        return False
+    if run(["systemctl", "is-active", "str2str_tcp.service"]).strip() != "active":
+        return False
+    if RECEIVER_OUTPUT.get("silent_since"):
+        return False
     if run(["systemctl", "is-active", "str2str_ntrip_A.service"]).strip() != "active":
         return False
     port = rtkbase_conf("svr_port_a") or "2101"

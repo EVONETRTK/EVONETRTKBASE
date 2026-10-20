@@ -67,3 +67,29 @@ n.write_json(n.ALERT_FILE, {})
 r = c.post("/api/network/alerts", json={"test": True}).get_json()
 assert "inviato" in r["result"] and len(sms) == 5, (r, sms)
 print("AVVISI ROUTE OK")
+
+# criterio "in linea": il servizio NTRIP che riparte e si collega per pochi secondi non basta (20/10)
+import importlib
+n2 = n
+real_up = n2.__class__ if False else None
+svc = {"str2str_tcp.service": "activating", "str2str_ntrip_A.service": "active"}
+def run3(args, timeout=15):
+    if args[:2] == ["systemctl", "is-active"]:
+        return svc.get(args[2], "inactive")
+    if args[0] == "ss":
+        return "ESTAB 0 0 192.168.10.2:1 45.129.248.45:2101"
+    return ""
+n.run = run3
+import types
+up_fn = n.__dict__.get("_transmission_up_real")
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Install", "network_page.py"),
+          encoding="utf-8").read().split("def transmission_up():")[1].split("\ndef down_reason")[0].join(["def _tu():", ""]), n.__dict__)
+open(n.RTKBASE_SETTINGS, "w").write("[main]\ncom_port='ttyGNSS_TEST_ASSENTE'\n[ntrip_A]\nsvr_port_a='2101'\n")
+assert n._tu() is False                                   # ricevitore non collegato
+open(n.RTKBASE_SETTINGS, "w").write("[main]\ncom_port=''\n[ntrip_A]\nsvr_port_a='2101'\n")
+assert n._tu() is False                                   # servizio del ricevitore che non parte
+svc["str2str_tcp.service"] = "active"; n.RECEIVER_OUTPUT["silent_since"] = 123
+assert n._tu() is False                                   # ricevitore muto
+n.RECEIVER_OUTPUT["silent_since"] = None
+assert n._tu() is True
+print("CRITERIO IN LINEA OK")
