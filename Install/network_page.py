@@ -130,6 +130,9 @@ DEFAULT_SETTINGS = {
     "access_notes": "",
     # aggiornamenti online dal repository EVONETRTKBASE: canale "stabile" (ramo main) o "prova"
     "update": {"channel": "stabile"},
+    # avvisi via SMS dal modem LTE quando la trasmissione al caster resta ferma (20/10: ferma 34 ore senza
+    # che nessuno se ne accorgesse)
+    "alerts": {"enabled": True, "numbers": [], "down_minutes": 15},
 }
 
 
@@ -2486,6 +2489,139 @@ def check_receiver_port(now):
                                                      else "ancora bloccata (staccare e riattaccare il ricevitore)"))
 
 
+#### avvisi via SMS: trasmissione al caster ferma ####
+
+ALERT_FILE = "/usr/local/rtkbase/network_alerts.json"
+ALERT_REMIND_EVERY = 12 * 3600       # promemoria se resta ferma
+ALERT_MAX_PER_DAY = 10
+SMS_MAX = 160
+
+
+def sms_text(text):
+    """ Testo SMS in caratteri semplici (alfabeto GSM base, niente accenti) e al massimo 160 caratteri """
+    import unicodedata
+    plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    plain = "".join(c for c in plain if c.isalnum() or c in " .,:;-_+/()%!?'=@\n")
+    return plain[:SMS_MAX]
+
+
+def send_sms(settings, number, text):
+    """ Manda un SMS dal modem (testo, AT+CMGS). Ritorna None se inviato, altrimenti il motivo dell'errore """
+    import termios
+    number = re.sub(r"[^0-9+]", "", number or "")
+    if not re.fullmatch(r"\+?[0-9]{6,15}", number):
+        return "numero non valido"
+    with file_lock(AT_LOCK, timeout=30):
+        port = find_at_port(settings)
+        if not port:
+            return "modem non trovato"
+        ok, lines = at_command(port, "AT+CMGF=1")
+        if not ok:
+            return "modem non pronto per gli SMS (%s)" % " ".join(lines)
+        at_command(port, 'AT+CSCS="GSM"')
+        fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+        try:
+            termios.tcflush(fd, termios.TCIOFLUSH)
+
+            def wait_for(marks, seconds):
+                data, end = b"", time.time() + seconds
+                while time.time() < end and not any(m in data for m in marks):
+                    if select.select([fd], [], [], 0.2)[0]:
+                        try:
+                            data += os.read(fd, 1024)
+                        except BlockingIOError:
+                            pass
+                return data
+
+            os.write(fd, ('AT+CMGS="%s"\r' % number).encode())
+            if b">" not in wait_for((b">", b"ERROR"), 10):
+                os.write(fd, b"\x1b")
+                return "il modem non accetta l'SMS"
+            os.write(fd, sms_text(text).encode() + b"\x1a")
+            answer = wait_for((b"+CMGS:", b"ERROR"), 60)
+            return None if b"+CMGS:" in answer else "invio rifiutato dalla rete (%s)" % answer.decode(errors="replace").strip()
+        finally:
+            os.close(fd)
+
+
+def alert_numbers(settings):
+    return [n for n in settings["alerts"]["numbers"] if n.strip()]
+
+
+def send_alert(settings, text):
+    """ SMS a tutti i numeri degli avvisi (con limite giornaliero). Ritorna l'esito per il registro """
+    state = read_json(ALERT_FILE, {})
+    day = time.strftime("%Y-%m-%d")
+    sent_today = state.get("sent_today", 0) if state.get("day") == day else 0
+    if sent_today >= ALERT_MAX_PER_DAY:
+        return "limite di %d SMS al giorno raggiunto" % ALERT_MAX_PER_DAY
+    results = []
+    for number in alert_numbers(settings):
+        try:
+            error = send_sms(settings, number, text)
+        except (OSError, TimeoutError) as e:
+            error = str(e)
+        results.append("%s %s" % (number, "inviato" if error is None else "NON inviato: " + error))
+        sent_today += 1
+    state.update(day=day, sent_today=sent_today)
+    write_json(ALERT_FILE, dict(read_json(ALERT_FILE, {}), day=day, sent_today=sent_today))
+    return "; ".join(results) or "nessun numero per gli avvisi"
+
+
+def transmission_up():
+    """ True se la trasmissione NTRIP A e' attiva e collegata al caster """
+    if run(["systemctl", "is-active", "str2str_ntrip_A.service"]).strip() != "active":
+        return False
+    port = rtkbase_conf("svr_port_a") or "2101"
+    return bool(run(["ss", "-Htn", "state", "established", "( dport = :%s )" % port]).strip())
+
+
+def down_reason():
+    port = rtkbase_com_port()
+    if port and not os.path.exists("/dev/" + port):
+        return "ricevitore GNSS non collegato (controllare il cavo USB)"
+    if run(["systemctl", "is-active", "str2str_tcp.service"]).strip() != "active":
+        return "servizio del ricevitore fermo"
+    if RECEIVER_OUTPUT.get("silent_since"):
+        return "il ricevitore non manda dati (pochi satelliti? antenna?)"
+    if not internet_ok(max_age=120):
+        return "base senza internet"
+    return "collegamento al caster non riuscito"
+
+
+def check_transmission_alert(now, settings):
+    """ Nel servizio watch: SMS se la trasmissione resta ferma da down_minutes, promemoria ogni 12 ore,
+        SMS quando riparte. Niente avvisi durante una misura o prova (pausa). """
+    alerts = settings["alerts"]
+    if not alerts["enabled"] or not alert_numbers(settings) or pause_info(now):
+        return
+    state = read_json(ALERT_FILE, {})
+    host = socket.gethostname()
+    mount = rtkbase_conf("mnt_name_a") or "trasmissione"
+    if transmission_up():
+        if state.get("alerted_at"):
+            minutes = (now - state["down_since"]) // 60
+            result = send_alert(settings, "%s: %s DI NUOVO IN LINEA dopo %d minuti di fermo." % (host, mount, minutes))
+            log("avviso SMS: %s di nuovo in linea (%s)" % (mount, result))
+        if state.get("down_since") or state.get("alerted_at"):
+            state = dict(read_json(ALERT_FILE, {}), down_since=None, alerted_at=None)
+            write_json(ALERT_FILE, state)
+        return
+    if not state.get("down_since"):
+        state["down_since"] = now
+        write_json(ALERT_FILE, state)
+        return
+    down = now - state["down_since"]
+    due = (not state.get("alerted_at") and down >= alerts["down_minutes"] * 60) or \
+        (state.get("alerted_at") and now - state["alerted_at"] >= ALERT_REMIND_EVERY)
+    if not due:
+        return
+    text = "%s: %s FERMA da %d minuti. Motivo: %s." % (host, mount, down // 60, down_reason())
+    result = send_alert(settings, text)
+    write_json(ALERT_FILE, dict(read_json(ALERT_FILE, {}), alerted_at=now))
+    log("avviso SMS: %s ferma da %d minuti (%s)" % (mount, down // 60, result))
+
+
 def describe_satellites(sats):
     if not sats:
         return "satelliti non disponibili"
@@ -2924,6 +3060,7 @@ def watch():
             if slow:
                 check_receiver_port(now)
                 check_receiver_output(now, temps, read_receiver)
+                check_transmission_alert(now, settings)
             if slow or read_receiver:
                 check_temperatures(settings, temps, now, read_receiver)
             if read_receiver:

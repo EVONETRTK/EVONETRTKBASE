@@ -839,6 +839,36 @@ $(document).ready(function () {
         }
     }
 
+    //### Avvisi via SMS ###
+
+    function renderAlerts(a) {
+        $("#alerts-enabled").prop("checked", !!a.enabled);
+        if (!$("#alerts-numbers").is(":focus")) {
+            $("#alerts-numbers").val((a.numbers || []).join(", "));
+        }
+        $("#alerts-minutes").val(a.down_minutes);
+        if (a.result) {
+            $("#alerts-result").text(a.result);
+        }
+    }
+
+    $.getJSON("/api/network/alerts", renderAlerts);
+
+    $("#alerts-save").on("click", function () {
+        postJson("/api/network/alerts", {
+            enabled: $("#alerts-enabled").is(":checked"),
+            numbers: $("#alerts-numbers").val(),
+            down_minutes: parseInt($("#alerts-minutes").val(), 10)
+        }).done(function (a) { renderAlerts(a); $("#alerts-result").text("Salvato."); showError(null); }).fail(requestFailed);
+    });
+
+    $("#alerts-test").on("click", function () {
+        let button = $(this).prop("disabled", true);
+        $("#alerts-result").text("Invio in corso...");
+        postJson("/api/network/alerts", {test: true}).done(renderAlerts).fail(requestFailed)
+            .always(function () { button.prop("disabled", false); });
+    });
+
     //### Posizione della base (Galileo HAS) ###
 
     const HAS_STATES = {starting: "avvio", switching: "riconfigurazione del ricevitore", measuring: "misura in corso",

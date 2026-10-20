@@ -201,6 +201,33 @@ def sim():
     return jsonify(net.sim_info())
 
 
+@blueprint.route("/api/network/alerts", methods=["GET", "POST"])
+@login_required
+def alerts():
+    """ Avvisi via SMS quando la trasmissione al caster si ferma. POST {enabled, numbers, down_minutes} salva,
+        POST {test: true} manda un SMS di prova ai numeri salvati """
+    settings = net.load_settings()
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        if data.get("test"):
+            result = net.send_alert(settings, "%s: SMS di prova degli avvisi della base." % socket.gethostname())
+            net.log("avviso SMS di prova: " + result)
+            return jsonify(dict(settings["alerts"], ok=True, result=result))
+        numbers = [n.strip() for n in re.split(r"[,;\n]", str(data.get("numbers") or "")) if n.strip()]
+        for number in numbers:
+            if not net.PHONE_RE.fullmatch(" ".join(number.split())):
+                return error("Numero non valido: %s" % number)
+        try:
+            minutes = int(data.get("down_minutes") or 15)
+        except (TypeError, ValueError):
+            return error("Minuti non validi.")
+        if not 5 <= minutes <= 240:
+            return error("Il tempo prima dell'avviso deve essere tra 5 e 240 minuti.")
+        settings["alerts"].update(enabled=bool(data.get("enabled")), numbers=numbers, down_minutes=minutes)
+        net.save_settings(settings)
+    return jsonify(dict(settings["alerts"], ok=True))
+
+
 @blueprint.route("/api/network/has", methods=["GET", "POST"])
 @login_required
 def has():

@@ -250,6 +250,35 @@
     </div>
   </div>
 
+  <!-- Avvisi via SMS -->
+  <div class="card net-section">
+    <div class="card-header font-weight-bold">Avvisi via SMS</div>
+    <div class="card-body">
+      <div class="custom-control custom-switch mb-2">
+        <input type="checkbox" class="custom-control-input" id="alerts-enabled">
+        <label class="custom-control-label" for="alerts-enabled">Manda un SMS se la trasmissione al caster si ferma</label>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-7">
+          <label for="alerts-numbers">Numeri a cui mandare gli avvisi</label>
+          <input type="text" class="form-control" id="alerts-numbers" placeholder="es. +39 360 1234567, +39 333 7654321">
+          <small class="form-text text-muted">Separati da virgola. Gli SMS partono dalla SIM della base.</small>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="alerts-minutes">Dopo quanti minuti di fermo</label>
+          <input type="number" class="form-control" id="alerts-minutes" min="5" max="240" step="5">
+        </div>
+      </div>
+      <button id="alerts-save" class="btn btn-sm btn-primary" type="button">Salva</button>
+      <button id="alerts-test" class="btn btn-sm btn-outline-secondary" type="button">Manda un SMS di prova</button>
+      <span id="alerts-result" class="small ml-2"></span>
+      <p class="small text-muted mt-2 mb-0">
+        Arriva un SMS con il motivo (es. ricevitore non collegato, base senza internet), un promemoria ogni 12 ore se
+        resta ferma e un SMS quando torna in linea. Durante una misura HAS non parte nessun avviso. Massimo 10 SMS al giorno.
+      </p>
+    </div>
+  </div>
+
   <!-- Posizione della base (Galileo HAS) -->
   <div class="card net-section" id="has-card">
     <div class="card-header font-weight-bold">Posizione della base (misura con Galileo HAS)</div>
